@@ -148,7 +148,7 @@ def page_events() -> None:
 # Page: Teams
 # ---------------------------------------------------------------------------
 def page_teams() -> None:
-    """Pick an event, view its teams, and create new teams."""
+    """List teams for an event, create them with skill thresholds, recommend candidates."""
     st.header("👥 Teams")
 
     events = db.get_events(supabase)
@@ -156,7 +156,6 @@ def page_teams() -> None:
         st.warning("No events exist yet. Create one on the Events page first.")
         return
 
-    # Build a label -> id map so the user sees event names while we keep the id.
     event_options = {row["name"]: row["id"] for _, row in events.iterrows()}
     event_label = st.selectbox("Select event", list(event_options.keys()))
     event_id = event_options[event_label]
@@ -165,23 +164,67 @@ def page_teams() -> None:
     if teams.empty:
         st.info("No teams yet for this event.")
     else:
-        st.dataframe(teams, use_container_width=True)
+        threshold_cols = [f"req_{s}" for s in ml.SKILL_COLUMNS]
+        display_cols = ["name", *threshold_cols]
+        st.dataframe(teams[display_cols], use_container_width=True)
 
     st.divider()
     st.subheader("Create a new team")
     with st.form("new_team_form"):
         team_name = st.text_input("Team name")
+        st.markdown(
+            "**Minimum skill thresholds** (0 = don't care, candidates "
+            "with the skill below the threshold are filtered out)"
+        )
+        thresholds_input = {}
+        cols = st.columns(3)
+        for i, s in enumerate(ml.SKILL_COLUMNS):
+            with cols[i % 3]:
+                thresholds_input[f"req_{s}"] = st.slider(
+                    s.capitalize(), 0, 5, 0, key=f"req_{s}"
+                )
         submitted = st.form_submit_button("Create team")
 
     if submitted:
         if not team_name:
             st.warning("Team name is required.")
         else:
-            db.create_team(supabase, event_id, team_name)
+            db.create_team(supabase, event_id, team_name, thresholds_input)
             st.success(f"Team '{team_name}' created.")
             st.rerun()
 
     if not teams.empty:
+        st.divider()
+        st.subheader("Recommend candidates")
+        team_label = st.selectbox(
+            "Pick a team", list(teams["name"]), key=f"recommend_team_select_{event_id}"
+        )
+        team_row = teams[teams["name"] == team_label].iloc[0]
+
+        all_in_event = db.get_event_participants(supabase, event_id)
+        if all_in_event.empty:
+            st.info("No participants in this event yet.")
+        else:
+            unassigned = all_in_event[all_in_event["team_id"].isna()]
+            if unassigned.empty:
+                st.info("No unassigned participants to recommend from.")
+            else:
+                recs = ml.recommend_candidates(team_row, unassigned, k=5)
+                if recs.empty:
+                    st.info("No candidates match the thresholds for this team.")
+                else:
+                    show_cols = ["name", "distance", *ml.SKILL_COLUMNS]
+                    st.dataframe(
+                        recs[show_cols].assign(
+                            distance=recs["distance"].round(2)
+                        ),
+                        use_container_width=True,
+                    )
+                    st.caption(
+                        "Lower distance = closer to the team's stated "
+                        "requirements. Use the Participants page to assign."
+                    )
+
         st.divider()
         st.subheader("Delete a team")
         st.caption("Deleting a team also removes all its participants.")
@@ -189,9 +232,9 @@ def page_teams() -> None:
         to_delete = st.selectbox(
             "Select team to delete",
             list(team_delete_options.keys()),
-            key="delete_team_select",
+            key=f"delete_team_select_{event_id}",
         )
-        if st.button("🗑️ Delete team", key="delete_team_btn"):
+        if st.button("🗑️ Delete team", key=f"delete_team_btn_{event_id}"):
             db.delete_team(supabase, team_delete_options[to_delete])
             st.success(f"Team '{to_delete}' deleted.")
             st.rerun()
