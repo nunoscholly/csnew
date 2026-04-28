@@ -93,7 +93,12 @@ def get_teams(supabase: Client, event_id: str) -> pd.DataFrame:
     return pd.DataFrame(response.data)
 
 
-def create_team(supabase: Client, event_id: str, name: str) -> dict:
+def create_team(
+    supabase: Client,
+    event_id: str,
+    name: str,
+    thresholds: Optional[dict] = None,
+) -> dict:
     """
     Insert a new team for the given event.
 
@@ -101,11 +106,15 @@ def create_team(supabase: Client, event_id: str, name: str) -> dict:
         supabase: an initialised supabase-py client.
         event_id: the UUID of the event the team belongs to.
         name: the team name.
+        thresholds: optional dict of req_<skill> minimums (0-5). Missing
+            keys default to 0 ("don't care").
 
     Returns:
         The inserted row as a dict.
     """
     payload = {"event_id": event_id, "name": name}
+    if thresholds:
+        payload.update(thresholds)
     response = supabase.table("teams").insert(payload).execute()
     return response.data[0]
 
@@ -140,34 +149,100 @@ def get_participants(supabase: Client, team_id: str) -> pd.DataFrame:
     return pd.DataFrame(response.data)
 
 
-def add_participant(
-    supabase: Client,
-    team_id: str,
-    name: str,
-    skill: str,
-    status: str = "pending",
-) -> dict:
+def get_event_participants(supabase: Client, event_id: str) -> pd.DataFrame:
     """
-    Insert a new participant into a team.
+    Fetch every participant in an event, with team_name attached when
+    the participant is assigned to a team.
 
     Args:
         supabase: an initialised supabase-py client.
-        team_id: the UUID of the team this participant joins.
+        event_id: the UUID of the event.
+
+    Returns:
+        A DataFrame of participants with all columns plus 'team_name'
+        (NaN for unassigned participants). Empty if no participants.
+    """
+    response = (
+        supabase.table("participants")
+        .select("*")
+        .eq("event_id", event_id)
+        .order("created_at")
+        .execute()
+    )
+    participants = pd.DataFrame(response.data)
+    if participants.empty:
+        return participants
+
+    teams_response = (
+        supabase.table("teams")
+        .select("id,name")
+        .eq("event_id", event_id)
+        .execute()
+    )
+    teams = pd.DataFrame(teams_response.data)
+    if teams.empty:
+        participants["team_name"] = pd.NA
+        return participants
+
+    teams = teams.rename(columns={"id": "team_id", "name": "team_name"})
+    return participants.merge(teams, on="team_id", how="left")
+
+
+def add_participant(
+    supabase: Client,
+    event_id: str,
+    name: str,
+    skills: dict,
+    skill: Optional[str] = None,
+    status: str = "pending",
+    team_id: Optional[str] = None,
+) -> dict:
+    """
+    Insert a new participant into the event-level pool.
+
+    Args:
+        supabase: an initialised supabase-py client.
+        event_id: the UUID of the event this participant belongs to.
         name: the participant's full name.
-        skill: skill label (e.g. "design", "engineering", "business").
+        skills: dict of the 9 skill ratings (1-5). Keys must match the
+            column names: strength, driving, design, social, construction,
+            english, german, photography, leadership.
+        skill: legacy text label (design/engineering/business/other) used
+            by the existing balance classifier. Optional.
         status: "pending" or "confirmed". Defaults to "pending".
+        team_id: optional team to assign to immediately. None = unassigned.
 
     Returns:
         The inserted row as a dict.
     """
     payload = {
+        "event_id": event_id,
         "team_id": team_id,
         "name": name,
         "skill": skill,
         "status": status,
+        **skills,
     }
     response = supabase.table("participants").insert(payload).execute()
     return response.data[0]
+
+
+def assign_participant_to_team(
+    supabase: Client,
+    participant_id: str,
+    team_id: str,
+) -> None:
+    """Assign an existing participant to a team."""
+    supabase.table("participants").update({"team_id": team_id}).eq(
+        "id", participant_id
+    ).execute()
+
+
+def unassign_participant(supabase: Client, participant_id: str) -> None:
+    """Remove a participant's team assignment (sets team_id = NULL)."""
+    supabase.table("participants").update({"team_id": None}).eq(
+        "id", participant_id
+    ).execute()
 
 
 def delete_participant(supabase: Client, participant_id: str) -> None:
