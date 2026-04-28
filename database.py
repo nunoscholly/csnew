@@ -63,6 +63,11 @@ def create_event(
     return response.data[0]
 
 
+def delete_event(supabase: Client, event_id: str) -> None:
+    """Delete an event. Teams and participants cascade automatically (FK on delete cascade)."""
+    supabase.table("events").delete().eq("id", event_id).execute()
+
+
 # ---------------------------------------------------------------------------
 # Teams
 # ---------------------------------------------------------------------------
@@ -103,6 +108,11 @@ def create_team(supabase: Client, event_id: str, name: str) -> dict:
     payload = {"event_id": event_id, "name": name}
     response = supabase.table("teams").insert(payload).execute()
     return response.data[0]
+
+
+def delete_team(supabase: Client, team_id: str) -> None:
+    """Delete a team. Participants cascade automatically."""
+    supabase.table("teams").delete().eq("id", team_id).execute()
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +168,11 @@ def add_participant(
     }
     response = supabase.table("participants").insert(payload).execute()
     return response.data[0]
+
+
+def delete_participant(supabase: Client, participant_id: str) -> None:
+    """Delete a single participant."""
+    supabase.table("participants").delete().eq("id", participant_id).execute()
 
 
 def get_all_participants_for_event(

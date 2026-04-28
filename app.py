@@ -130,6 +130,19 @@ def page_events() -> None:
             st.success(f"Event '{name}' created.")
             st.rerun()
 
+    if not events.empty:
+        st.divider()
+        st.subheader("Delete an event")
+        st.caption("Deleting an event also removes all its teams and participants.")
+        delete_options = {row["name"]: row["id"] for _, row in events.iterrows()}
+        to_delete = st.selectbox(
+            "Select event to delete", list(delete_options.keys()), key="delete_event_select"
+        )
+        if st.button("🗑️ Delete event", key="delete_event_btn"):
+            db.delete_event(supabase, delete_options[to_delete])
+            st.success(f"Event '{to_delete}' deleted.")
+            st.rerun()
+
 
 # ---------------------------------------------------------------------------
 # Page: Teams
@@ -166,6 +179,21 @@ def page_teams() -> None:
         else:
             db.create_team(supabase, event_id, team_name)
             st.success(f"Team '{team_name}' created.")
+            st.rerun()
+
+    if not teams.empty:
+        st.divider()
+        st.subheader("Delete a team")
+        st.caption("Deleting a team also removes all its participants.")
+        team_delete_options = {row["name"]: row["id"] for _, row in teams.iterrows()}
+        to_delete = st.selectbox(
+            "Select team to delete",
+            list(team_delete_options.keys()),
+            key="delete_team_select",
+        )
+        if st.button("🗑️ Delete team", key="delete_team_btn"):
+            db.delete_team(supabase, team_delete_options[to_delete])
+            st.success(f"Team '{to_delete}' deleted.")
             st.rerun()
 
 
@@ -214,6 +242,23 @@ def page_participants() -> None:
         else:
             db.add_participant(supabase, team_id, name, skill, status)
             st.success(f"Added {name} to team '{team_label}'.")
+            st.rerun()
+
+    if not participants.empty:
+        st.divider()
+        st.subheader("Remove a participant")
+        participant_options = {
+            f"{row['name']} ({row.get('skill') or 'no skill'})": row["id"]
+            for _, row in participants.iterrows()
+        }
+        to_delete = st.selectbox(
+            "Select participant to remove",
+            list(participant_options.keys()),
+            key="delete_participant_select",
+        )
+        if st.button("🗑️ Remove participant", key="delete_participant_btn"):
+            db.delete_participant(supabase, participant_options[to_delete])
+            st.success(f"Removed {to_delete}.")
             st.rerun()
 
 
