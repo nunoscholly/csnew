@@ -1,6 +1,5 @@
 """Tests for ml.recommend_candidates."""
 import pandas as pd
-import pytest
 
 from ml import SKILL_COLUMNS, recommend_candidates
 
@@ -58,11 +57,10 @@ def test_ranks_by_distance_to_requirement_vector():
         _make_candidate("p3", "Close", strength=5, leadership=5, design=5),
     ])
     out = recommend_candidates(team, candidates)
-    # p1 and p3 both match strength/leadership exactly; p1 has design=3, p3 design=5.
-    # Requirement design=0, so p1 (design=3) is closer to req than p3 (design=5).
-    assert out.iloc[0]["name"] == "Far"
-    assert list(out["name"])[:2] == ["Far", "Mid"] or list(out["name"])[:2] == ["Far", "Close"]
-    # Distances must be non-decreasing.
+    # Mid (strength=4, leadership=4) fails the strength>=5 threshold and is
+    # filtered out. Far and Close both pass; Far is closer to the req vector
+    # because Close has design=5 vs req design=0.
+    assert list(out["name"]) == ["Far", "Close"]
     distances = list(out["distance"])
     assert distances == sorted(distances)
 
