@@ -269,16 +269,21 @@ def page_participants() -> None:
             st.rerun()
 
     if not participants.empty:
+        # Build the {label: id} map once. pd.notna check is needed because
+        # `team_name` is pd.NA for unassigned rows, and `pd.NA or "..."`
+        # raises TypeError.
+        participant_options = {}
+        for _, row in participants.iterrows():
+            team_name = row.get("team_name")
+            label_team = team_name if pd.notna(team_name) else "unassigned"
+            participant_options[f"{row['name']} ({label_team})"] = row["id"]
+
         st.divider()
         st.subheader("Assign / unassign")
-        participant_options = {
-            f"{row['name']} ({row.get('team_name') or 'unassigned'})": row["id"]
-            for _, row in participants.iterrows()
-        }
         chosen = st.selectbox(
             "Pick a participant",
             list(participant_options.keys()),
-            key="assign_pick",
+            key=f"assign_pick_{event_id}",
         )
         chosen_id = participant_options[chosen]
 
@@ -288,9 +293,9 @@ def page_participants() -> None:
                 target_team_label = st.selectbox(
                     "Assign to team",
                     list(team_options.keys()),
-                    key="assign_team",
+                    key=f"assign_team_{event_id}",
                 )
-                if st.button("➡️ Assign", key="assign_btn"):
+                if st.button("➡️ Assign", key=f"assign_btn_{event_id}"):
                     db.assign_participant_to_team(
                         supabase, chosen_id, team_options[target_team_label]
                     )
@@ -299,24 +304,20 @@ def page_participants() -> None:
             else:
                 st.caption("Create a team first to enable assignment.")
         with col_b:
-            if st.button("⬅️ Unassign", key="unassign_btn"):
+            if st.button("⬅️ Unassign", key=f"unassign_btn_{event_id}"):
                 db.unassign_participant(supabase, chosen_id)
                 st.success("Participant is now unassigned.")
                 st.rerun()
 
         st.divider()
         st.subheader("Remove a participant")
-        delete_options = {
-            f"{row['name']} ({row.get('team_name') or 'unassigned'})": row["id"]
-            for _, row in participants.iterrows()
-        }
         to_delete = st.selectbox(
             "Select participant to remove",
-            list(delete_options.keys()),
-            key="delete_participant_select",
+            list(participant_options.keys()),
+            key=f"delete_participant_select_{event_id}",
         )
-        if st.button("🗑️ Remove participant", key="delete_participant_btn"):
-            db.delete_participant(supabase, delete_options[to_delete])
+        if st.button("🗑️ Remove participant", key=f"delete_participant_btn_{event_id}"):
+            db.delete_participant(supabase, participant_options[to_delete])
             st.success(f"Removed {to_delete}.")
             st.rerun()
 
