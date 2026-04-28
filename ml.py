@@ -25,7 +25,20 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report
+from sklearn.neighbors import NearestNeighbors
 from sklearn.tree import DecisionTreeClassifier
+
+SKILL_COLUMNS = [
+    "strength",
+    "driving",
+    "design",
+    "social",
+    "construction",
+    "english",
+    "german",
+    "photography",
+    "leadership",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -186,3 +199,62 @@ def features_for_team(team_participants: pd.DataFrame) -> dict:
         "num_skills": int(num_skills),
         "confirmed_ratio": float(confirmed / team_size),
     }
+
+
+def recommend_candidates(
+    team_row: pd.Series,
+    candidates_df: pd.DataFrame,
+    k: int = 5,
+) -> pd.DataFrame:
+    """
+    Recommend up to k candidates whose skills best match a team's requirements.
+
+    Steps:
+      1. Filter: keep candidates where every skill >= the team's matching
+         req_<skill> threshold. Thresholds of 0 are no-ops.
+      2. Rank: fit sklearn's NearestNeighbors on the survivors' 9-D skill
+         vectors and query with the team's 9-D requirement vector. Lower
+         distance = closer to the team's stated requirements.
+
+    Args:
+        team_row: a pandas Series with req_<skill> columns for each of
+            the 9 skills (and any other team columns; we ignore them).
+        candidates_df: a DataFrame of candidate participants. Must contain
+            the 9 skill columns plus 'id' and 'name'.
+        k: max number of recommendations to return.
+
+    Returns:
+        A DataFrame with columns id, name, distance, and the 9 skill
+        columns, sorted ascending by distance. Empty if no candidates
+        survive the threshold filter (or candidates_df is empty).
+    """
+    if candidates_df.empty:
+        return pd.DataFrame(columns=["id", "name", "distance", *SKILL_COLUMNS])
+
+    # 1. Threshold filter: every skill must meet team's req_<skill>.
+    mask = pd.Series(True, index=candidates_df.index)
+    for skill in SKILL_COLUMNS:
+        threshold = int(team_row.get(f"req_{skill}", 0) or 0)
+        if threshold > 0:
+            mask &= candidates_df[skill] >= threshold
+    survivors = candidates_df[mask].copy()
+
+    if survivors.empty:
+        return pd.DataFrame(columns=["id", "name", "distance", *SKILL_COLUMNS])
+
+    # 2. kNN rank against the team's requirement vector.
+    n = len(survivors)
+    n_neighbors = min(k, n)
+    skill_matrix = survivors[SKILL_COLUMNS].to_numpy()
+    requirement_vector = [
+        int(team_row.get(f"req_{s}", 0) or 0) for s in SKILL_COLUMNS
+    ]
+
+    knn = NearestNeighbors(n_neighbors=n_neighbors, metric="euclidean")
+    knn.fit(skill_matrix)
+    distances, indices = knn.kneighbors([requirement_vector])
+
+    ordered = survivors.iloc[indices[0]].copy()
+    ordered["distance"] = distances[0]
+    cols = ["id", "name", "distance", *SKILL_COLUMNS]
+    return ordered[cols].reset_index(drop=True)
