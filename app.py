@@ -201,12 +201,12 @@ def page_teams() -> None:
 # Page: Participants
 # ---------------------------------------------------------------------------
 def page_participants() -> None:
-    """Pick an event, then a team, then add participants to that team."""
+    """Event-scoped participant pool: list, create, assign, unassign, delete."""
     st.header("➕ Participants")
 
     events = db.get_events(supabase)
     if events.empty:
-        st.warning("No events exist yet.")
+        st.warning("No events exist yet. Create one on the Events page first.")
         return
 
     event_options = {row["name"]: row["id"] for _, row in events.iterrows()}
@@ -214,50 +214,109 @@ def page_participants() -> None:
     event_id = event_options[event_label]
 
     teams = db.get_teams(supabase, event_id)
-    if teams.empty:
-        st.warning("No teams in this event yet. Create one on the Teams page.")
-        return
-
     team_options = {row["name"]: row["id"] for _, row in teams.iterrows()}
-    team_label = st.selectbox("Select team", list(team_options.keys()))
-    team_id = team_options[team_label]
 
-    participants = db.get_participants(supabase, team_id)
+    participants = db.get_event_participants(supabase, event_id)
     if participants.empty:
-        st.info("No participants on this team yet.")
+        st.info("No participants in this event yet.")
     else:
-        st.dataframe(participants, use_container_width=True)
+        display_cols = ["name", "team_name", "status", *ml.SKILL_COLUMNS]
+        st.dataframe(
+            participants[display_cols].fillna({"team_name": "— unassigned —"}),
+            use_container_width=True,
+        )
 
     st.divider()
     st.subheader("Add a participant")
     with st.form("new_participant_form"):
         name = st.text_input("Name")
-        skill = st.selectbox("Skill", ["design", "engineering", "business", "other"])
+        skill = st.selectbox(
+            "Legacy skill label (used by balance classifier)",
+            ["design", "engineering", "business", "other"],
+        )
         status = st.selectbox("Status", ["pending", "confirmed"])
+        team_choice = st.selectbox(
+            "Assign to team",
+            ["— Unassigned —", *team_options.keys()],
+        )
+        st.markdown("**Skill ratings (1 = weak, 5 = strong)**")
+        skills_input = {}
+        cols = st.columns(3)
+        for i, s in enumerate(ml.SKILL_COLUMNS):
+            with cols[i % 3]:
+                skills_input[s] = st.slider(s.capitalize(), 1, 5, 3, key=f"new_{s}")
         submitted = st.form_submit_button("Add participant")
 
     if submitted:
         if not name:
             st.warning("Participant name is required.")
         else:
-            db.add_participant(supabase, team_id, name, skill, status)
-            st.success(f"Added {name} to team '{team_label}'.")
+            chosen_team_id = (
+                team_options[team_choice]
+                if team_choice != "— Unassigned —"
+                else None
+            )
+            db.add_participant(
+                supabase,
+                event_id=event_id,
+                name=name,
+                skills=skills_input,
+                skill=skill,
+                status=status,
+                team_id=chosen_team_id,
+            )
+            st.success(f"Added {name} to event '{event_label}'.")
             st.rerun()
 
     if not participants.empty:
         st.divider()
-        st.subheader("Remove a participant")
+        st.subheader("Assign / unassign")
         participant_options = {
-            f"{row['name']} ({row.get('skill') or 'no skill'})": row["id"]
+            f"{row['name']} ({row.get('team_name') or 'unassigned'})": row["id"]
+            for _, row in participants.iterrows()
+        }
+        chosen = st.selectbox(
+            "Pick a participant",
+            list(participant_options.keys()),
+            key="assign_pick",
+        )
+        chosen_id = participant_options[chosen]
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if team_options:
+                target_team_label = st.selectbox(
+                    "Assign to team",
+                    list(team_options.keys()),
+                    key="assign_team",
+                )
+                if st.button("➡️ Assign", key="assign_btn"):
+                    db.assign_participant_to_team(
+                        supabase, chosen_id, team_options[target_team_label]
+                    )
+                    st.success(f"Assigned to '{target_team_label}'.")
+                    st.rerun()
+            else:
+                st.caption("Create a team first to enable assignment.")
+        with col_b:
+            if st.button("⬅️ Unassign", key="unassign_btn"):
+                db.unassign_participant(supabase, chosen_id)
+                st.success("Participant is now unassigned.")
+                st.rerun()
+
+        st.divider()
+        st.subheader("Remove a participant")
+        delete_options = {
+            f"{row['name']} ({row.get('team_name') or 'unassigned'})": row["id"]
             for _, row in participants.iterrows()
         }
         to_delete = st.selectbox(
             "Select participant to remove",
-            list(participant_options.keys()),
+            list(delete_options.keys()),
             key="delete_participant_select",
         )
         if st.button("🗑️ Remove participant", key="delete_participant_btn"):
-            db.delete_participant(supabase, participant_options[to_delete])
+            db.delete_participant(supabase, delete_options[to_delete])
             st.success(f"Removed {to_delete}.")
             st.rerun()
 
