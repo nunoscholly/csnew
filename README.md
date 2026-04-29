@@ -11,11 +11,19 @@ place to create events, build teams, add participants, visualise team
 composition, and run a small machine learning model that flags whether a
 team looks balanced or unbalanced.
 
+## Features
+
+- **Events, teams, participants** — full CRUD with cascading delete buttons.
+- **Skill ratings & kNN recommendations** — rate participants on 9 skills (strength, driving, design, social, construction, english, german, photography, leadership) on a 1–5 scale, set per-team minimum thresholds, and let scikit-learn's `NearestNeighbors` recommend the best-fitting unassigned candidates for each team.
+- **Event-scoped participant pool** — the Participants page lists everyone in an event regardless of team, so you can add people first and assign them later.
+- **Team balance classifier** — a `DecisionTreeClassifier` flags whether a team looks balanced.
+- **Dashboard** — bar/pie charts of team sizes, skills, and confirmation status.
+
 ## Tech stack
 
 - **UI:** Streamlit
 - **Database & Auth:** Supabase (Postgres + REST API + Auth)
-- **ML:** scikit-learn `DecisionTreeClassifier`
+- **ML:** scikit-learn `DecisionTreeClassifier` (balance) + `NearestNeighbors` (recommendations)
 - **Data:** pandas, numpy
 - **Charts:** matplotlib + Streamlit built-ins
 
