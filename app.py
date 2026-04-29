@@ -181,7 +181,7 @@ def page_teams() -> None:
         for i, s in enumerate(ml.SKILL_COLUMNS):
             with cols[i % 3]:
                 thresholds_input[f"req_{s}"] = st.slider(
-                    s.capitalize(), 0, 5, 0, key=f"req_{s}"
+                    s.capitalize(), 0, 5, 0, key=f"req_{s}_{event_id}"
                 )
         submitted = st.form_submit_button("Create team")
 
@@ -196,10 +196,13 @@ def page_teams() -> None:
     if not teams.empty:
         st.divider()
         st.subheader("Recommend candidates")
+        team_options = {row["name"]: row["id"] for _, row in teams.iterrows()}
         team_label = st.selectbox(
-            "Pick a team", list(teams["name"]), key=f"recommend_team_select_{event_id}"
+            "Pick a team",
+            list(team_options.keys()),
+            key=f"recommend_team_select_{event_id}",
         )
-        team_row = teams[teams["name"] == team_label].iloc[0]
+        team_row = teams[teams["id"] == team_options[team_label]].iloc[0]
 
         all_in_event = db.get_event_participants(supabase, event_id)
         if all_in_event.empty:
