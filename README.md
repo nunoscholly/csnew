@@ -51,32 +51,9 @@ team looks balanced or unbalanced.
    ```
 3. **Set up Supabase**:
    - Create a project at https://supabase.com.
-   - In the SQL editor, create the schema:
-     ```sql
-     create table events (
-       id uuid primary key default gen_random_uuid(),
-       name text not null,
-       date date,
-       location text,
-       created_at timestamp default now()
-     );
-
-     create table teams (
-       id uuid primary key default gen_random_uuid(),
-       event_id uuid references events(id),
-       name text not null,
-       created_at timestamp default now()
-     );
-
-     create table participants (
-       id uuid primary key default gen_random_uuid(),
-       team_id uuid references teams(id),
-       name text not null,
-       skill text,
-       status text default 'pending',
-       created_at timestamp default now()
-     );
-     ```
+   - Apply the schema by running every file in `supabase/migrations/` in order. Either:
+     - Run `supabase link --project-ref <your-ref>` then `supabase db push` (requires the Supabase CLI and your DB password), **or**
+     - Open each `.sql` file under `supabase/migrations/` and paste the contents into the Supabase SQL editor in chronological order.
    - In Authentication, enable Email/Password sign-in and create a user.
 4. **Configure credentials**:
    ```bash

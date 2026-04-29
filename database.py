@@ -20,6 +20,8 @@ from typing import Optional
 import pandas as pd
 from supabase import Client
 
+from ml import SKILL_COLUMNS
+
 
 # ---------------------------------------------------------------------------
 # Events
@@ -221,8 +223,8 @@ def add_participant(
         "name": name,
         "skill": skill,
         "status": status,
-        **skills,
     }
+    payload.update({k: v for k, v in skills.items() if k in SKILL_COLUMNS})
     response = supabase.table("participants").insert(payload).execute()
     return response.data[0]
 

@@ -23,6 +23,10 @@ update public.participants p
   from public.teams t
  where p.team_id = t.id and p.event_id is null;
 
+-- After backfill, enforce that every participant belongs to an event.
+alter table public.participants
+  alter column event_id set not null;
+
 alter table public.teams
   add column if not exists req_strength     int default 0,
   add column if not exists req_driving      int default 0,
