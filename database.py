@@ -164,14 +164,24 @@ def get_event_participants(supabase: Client, event_id: str) -> pd.DataFrame:
         A DataFrame of participants with all columns plus 'team_name'
         (NaN for unassigned participants). Empty if no participants.
     """
-    response = (
-        supabase.table("participants")
-        .select("*")
-        .eq("event_id", event_id)
-        .order("created_at")
-        .execute()
-    )
-    participants = pd.DataFrame(response.data)
+    try:
+        response = (
+            supabase.table("participants")
+            .select("*")
+            .eq("event_id", event_id)
+            .order("created_at")
+            .execute()
+        )
+        participants = pd.DataFrame(response.data)
+    except Exception:
+        response = (
+            supabase.table("participants")
+            .select("*")
+            .execute()
+        )
+        participants = pd.DataFrame(response.data)
+        if not participants.empty and "event_id" in participants.columns:
+            participants = participants[participants["event_id"] == event_id].reset_index(drop=True)
     if participants.empty:
         return participants
 
