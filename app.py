@@ -28,7 +28,7 @@ import ml
 # ---------------------------------------------------------------------------
 # Configure the Streamlit page once at the top so the title/favicon are
 # consistent across reruns.
-st.set_page_config(page_title="Event Team Manager", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="Event Team Manager", layout="wide")
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ supabase = st.session_state["supabase"]
 # ---------------------------------------------------------------------------
 def render_login() -> None:
     """Render Login and Sign up tabs for unauthenticated users."""
-    st.title("🎯 Event Team Manager")
+    st.title("Event Team Manager")
 
     login_tab, signup_tab = st.tabs(["Log in", "Sign up"])
 
@@ -106,7 +106,7 @@ def render_login() -> None:
 # ---------------------------------------------------------------------------
 def page_events() -> None:
     """List all events and allow the user to create a new one."""
-    st.header("📋 Events")
+    st.header("Events")
 
     events = db.get_events(supabase)
     if events.empty:
@@ -138,7 +138,7 @@ def page_events() -> None:
         to_delete = st.selectbox(
             "Select event to delete", list(delete_options.keys()), key="delete_event_select"
         )
-        if st.button("🗑️ Delete event", key="delete_event_btn"):
+        if st.button("Delete event", key="delete_event_btn"):
             db.delete_event(supabase, delete_options[to_delete])
             st.success(f"Event '{to_delete}' deleted.")
             st.rerun()
@@ -149,7 +149,7 @@ def page_events() -> None:
 # ---------------------------------------------------------------------------
 def page_teams() -> None:
     """List teams for an event, create them with skill thresholds, recommend candidates."""
-    st.header("👥 Teams")
+    st.header("Teams")
 
     events = db.get_events(supabase)
     if events.empty:
@@ -237,7 +237,7 @@ def page_teams() -> None:
             list(team_delete_options.keys()),
             key=f"delete_team_select_{event_id}",
         )
-        if st.button("🗑️ Delete team", key=f"delete_team_btn_{event_id}"):
+        if st.button("Delete team", key=f"delete_team_btn_{event_id}"):
             db.delete_team(supabase, team_delete_options[to_delete])
             st.success(f"Team '{to_delete}' deleted.")
             st.rerun()
@@ -248,7 +248,7 @@ def page_teams() -> None:
 # ---------------------------------------------------------------------------
 def page_participants() -> None:
     """Event-scoped participant pool: list, create, assign, unassign, delete."""
-    st.header("➕ Participants")
+    st.header("Participants")
 
     events = db.get_events(supabase)
     if events.empty:
@@ -268,7 +268,7 @@ def page_participants() -> None:
     else:
         display_cols = ["name", "team_name", "status", *ml.SKILL_COLUMNS]
         st.dataframe(
-            participants[display_cols].fillna({"team_name": "— unassigned —"}),
+            participants[display_cols].fillna({"team_name": "Unassigned"}),
             use_container_width=True,
         )
 
@@ -283,7 +283,7 @@ def page_participants() -> None:
         status = st.selectbox("Status", ["pending", "confirmed"])
         team_choice = st.selectbox(
             "Assign to team",
-            ["— Unassigned —", *team_options.keys()],
+            ["Unassigned", *team_options.keys()],
         )
         st.markdown("**Skill ratings (1 = weak, 5 = strong)**")
         skills_input = {}
@@ -299,7 +299,7 @@ def page_participants() -> None:
         else:
             chosen_team_id = (
                 team_options[team_choice]
-                if team_choice != "— Unassigned —"
+                if team_choice != "Unassigned"
                 else None
             )
             db.add_participant(
@@ -341,7 +341,7 @@ def page_participants() -> None:
                     list(team_options.keys()),
                     key=f"assign_team_{event_id}",
                 )
-                if st.button("➡️ Assign", key=f"assign_btn_{event_id}"):
+                if st.button("Assign", key=f"assign_btn_{event_id}"):
                     db.assign_participant_to_team(
                         supabase, chosen_id, team_options[target_team_label]
                     )
@@ -350,7 +350,7 @@ def page_participants() -> None:
             else:
                 st.caption("Create a team first to enable assignment.")
         with col_b:
-            if st.button("⬅️ Unassign", key=f"unassign_btn_{event_id}"):
+            if st.button("Unassign", key=f"unassign_btn_{event_id}"):
                 db.unassign_participant(supabase, chosen_id)
                 st.success("Participant is now unassigned.")
                 st.rerun()
@@ -362,7 +362,7 @@ def page_participants() -> None:
             list(participant_options.keys()),
             key=f"delete_participant_select_{event_id}",
         )
-        if st.button("🗑️ Remove participant", key=f"delete_participant_btn_{event_id}"):
+        if st.button("Remove participant", key=f"delete_participant_btn_{event_id}"):
             db.delete_participant(supabase, participant_options[to_delete])
             st.success(f"Removed {to_delete}.")
             st.rerun()
@@ -373,7 +373,7 @@ def page_participants() -> None:
 # ---------------------------------------------------------------------------
 def page_dashboard() -> None:
     """Visualise team sizes, skill distribution and confirmed/pending split."""
-    st.header("📊 Dashboard")
+    st.header("Dashboard")
 
     events = db.get_events(supabase)
     if events.empty:
@@ -413,7 +413,7 @@ def page_dashboard() -> None:
 # ---------------------------------------------------------------------------
 def page_ml_insights() -> None:
     """Run the balance classifier against every team and show predictions."""
-    st.header("🤖 ML Insights — Team Balance Classifier")
+    st.header("ML Insights — Team Balance Classifier")
 
     events = db.get_events(supabase)
     if events.empty:
@@ -468,26 +468,26 @@ def render_app() -> None:
     page = st.sidebar.radio(
         "Navigate",
         [
-            "📋 Events",
-            "👥 Teams",
-            "➕ Participants",
-            "📊 Dashboard",
-            "🤖 ML Insights",
+            "Events",
+            "Teams",
+            "Participants",
+            "Dashboard",
+            "ML Insights",
         ],
     )
 
     st.sidebar.divider()
-    if st.sidebar.button("🚪 Logout"):
+    if st.sidebar.button("Logout"):
         auth.logout(supabase)
         st.rerun()
 
     # Dispatch — keep this map flat and easy to extend.
     pages = {
-        "📋 Events": page_events,
-        "👥 Teams": page_teams,
-        "➕ Participants": page_participants,
-        "📊 Dashboard": page_dashboard,
-        "🤖 ML Insights": page_ml_insights,
+        "Events": page_events,
+        "Teams": page_teams,
+        "Participants": page_participants,
+        "Dashboard": page_dashboard,
+        "ML Insights": page_ml_insights,
     }
     pages[page]()
 
