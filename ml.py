@@ -25,6 +25,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 from sklearn.neighbors import NearestNeighbors
 from sklearn.tree import DecisionTreeClassifier
 
@@ -138,6 +139,29 @@ def train_model(X: pd.DataFrame, y: pd.Series) -> DecisionTreeClassifier:
     return model
 
 
+def train_model_with_split(
+    X: pd.DataFrame,
+    y: pd.Series,
+) -> Tuple[DecisionTreeClassifier, pd.DataFrame, pd.Series]:
+    """
+    Split data, train a DecisionTreeClassifier, and return the test split.
+
+    Args:
+        X: feature matrix (see FEATURE_COLUMNS).
+        y: target labels ("balanced" / "unbalanced").
+
+    Returns:
+        (model, X_test, y_test) — fitted model plus the held-out test split.
+    """
+    # Course requirement: evaluate on unseen data, not training data, so the
+    # reported metrics reflect generalisation rather than memorisation.
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.30, random_state=42
+    )
+    model = train_model(X_train, y_train)
+    return model, X_test, y_test
+
+
 def predict_team_balance(
     model: DecisionTreeClassifier,
     team_features: dict,
@@ -167,8 +191,7 @@ def evaluation_report(
 
     Args:
         model: a fitted DecisionTreeClassifier.
-        X: feature matrix to evaluate on (typically the training data
-           plus seed rows — fine for a small classroom demo).
+        X: feature matrix to evaluate on (use the held-out test split).
         y: true labels matching X.
 
     Returns:

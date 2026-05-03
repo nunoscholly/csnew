@@ -428,10 +428,10 @@ def page_ml_insights() -> None:
 
     # Train on real data + seed rows. ml.build_training_data handles empty input.
     X, y = ml.build_training_data(participants)
-    model = ml.train_model(X, y)
+    model, X_test, y_test = ml.train_model_with_split(X, y)
 
-    st.subheader("Classification report (training data)")
-    st.code(ml.evaluation_report(model, X, y))
+    st.subheader("Classification report (held-out test data)")
+    st.code(ml.evaluation_report(model, X_test, y_test))
 
     st.subheader("Predictions per team")
     if participants.empty:
