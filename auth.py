@@ -30,14 +30,15 @@ def init_supabase() -> Client:
     Raises:
         ValueError: if SUPABASE_URL or SUPABASE_KEY is missing.
     """
-    # Prefer st.secrets (Streamlit Cloud), fall back to .env (local dev).
+    # Try .env first, then let st.secrets override (Streamlit Cloud).
+    load_dotenv()
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
     try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-    except (KeyError, FileNotFoundError):
-        load_dotenv()
-        url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_KEY")
+        url = st.secrets.get("SUPABASE_URL", url)
+        key = st.secrets.get("SUPABASE_KEY", key)
+    except Exception:
+        pass
 
     if not url or not key:
         raise ValueError(
