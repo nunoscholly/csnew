@@ -30,14 +30,15 @@ def init_supabase() -> Client:
     Raises:
         ValueError: if SUPABASE_URL or SUPABASE_KEY is missing.
     """
-    # Read variables from a local .env file (if present).
-    load_dotenv()
+    # Prefer st.secrets (Streamlit Cloud), fall back to .env (local dev).
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+    except (KeyError, FileNotFoundError):
+        load_dotenv()
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_KEY")
 
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_KEY")
-
-    # Fail loudly if the credentials are missing so the user knows to
-    # copy .env.example to .env and fill it in.
     if not url or not key:
         raise ValueError(
             "Missing SUPABASE_URL or SUPABASE_KEY. "
