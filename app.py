@@ -164,8 +164,8 @@ def page_teams() -> None:
     if teams.empty:
         st.info("No teams yet for this event.")
     else:
-        threshold_cols = [f"req_{s}" for s in ml.SKILL_COLUMNS]
-        display_cols = ["name", *threshold_cols]
+        threshold_cols = [f"req_{s}" for s in ml.SKILL_COLUMNS if f"req_{s}" in teams.columns]
+        display_cols = ["name"] + threshold_cols if "name" in teams.columns else list(teams.columns)
         st.dataframe(teams[display_cols], use_container_width=True)
 
     st.divider()
