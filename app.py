@@ -266,7 +266,7 @@ def page_participants() -> None:
     if participants.empty:
         st.info("No participants in this event yet.")
     else:
-        display_cols = ["name", "team_name", "status", *ml.SKILL_COLUMNS]
+        display_cols = [col for col in ["name", "team_name", "status", *ml.SKILL_COLUMNS] if col in participants.columns]
         st.dataframe(
             participants[display_cols].fillna({"team_name": "Unassigned"}),
             use_container_width=True,
