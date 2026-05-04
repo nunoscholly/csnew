@@ -1,11 +1,11 @@
-"""Tests for ml.recommend_candidates."""
+# Unit tests for recommendation algorithm: threshold filtering and kNN ranking
 import pandas as pd
 
 from ml import SKILL_COLUMNS, recommend_candidates
 
 
 def _make_team(**reqs):
-    """Helper: build a fake team row (Series) with all req_* columns defaulted to 0."""
+    # Build fake team with req_* columns (defaults to 0)
     base = {f"req_{s}": 0 for s in SKILL_COLUMNS}
     base.update({f"req_{k}": v for k, v in reqs.items()})
     base["id"] = "team-1"
@@ -14,7 +14,7 @@ def _make_team(**reqs):
 
 
 def _make_candidate(pid, name, **skills):
-    """Helper: candidate row dict with all 9 skills defaulted to 3."""
+    # Build fake candidate with 9 skills (defaults to 3)
     row = {s: 3 for s in SKILL_COLUMNS}
     row.update(skills)
     row["id"] = pid

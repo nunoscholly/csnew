@@ -1,17 +1,4 @@
-"""
-auth.py
--------
-Supabase authentication helpers for the Event Team Manager app.
-
-This module wraps the supabase-py client so the rest of the app can
-log users in, log them out, and check the current session without
-worrying about how Supabase Auth works underneath.
-
-Beginner note:
-    Supabase Auth gives us email + password login out of the box.
-    We just call the client methods and store the resulting session
-    inside Streamlit's st.session_state so it survives page reloads.
-"""
+# Supabase authentication helpers: login, signup, logout, and session management via st.session_state
 
 import os
 
@@ -21,15 +8,7 @@ from supabase import create_client, Client
 
 
 def init_supabase() -> Client:
-    """
-    Load environment variables from .env and return a Supabase client.
-
-    Returns:
-        Client: a configured supabase-py client ready to make API calls.
-
-    Raises:
-        ValueError: if SUPABASE_URL or SUPABASE_KEY is missing.
-    """
+    # Initialize Supabase client from .env or st.secrets (Streamlit Cloud)
     # Try .env first, then let st.secrets override (Streamlit Cloud).
     load_dotenv()
     url = os.getenv("SUPABASE_URL")
@@ -50,47 +29,22 @@ def init_supabase() -> Client:
 
 
 def login(supabase: Client, email: str, password: str):
-    """
-    Log a user in with email and password using Supabase Auth.
-
-    Args:
-        supabase: an initialised supabase-py client.
-        email: the user's email address.
-        password: the user's password.
-
-    Returns:
-        The auth response object from Supabase, which contains the
-        session and user info on success.
-    """
-    # sign_in_with_password takes a dict with the credentials.
+    # Authenticate user and cache session in st.session_state for page reloads
     response = supabase.auth.sign_in_with_password(
         {"email": email, "password": password}
     )
 
-    # Persist the session in Streamlit so other pages can see it.
+    # Cache session so other pages see the authenticated user
     st.session_state["session"] = response.session
     st.session_state["user"] = response.user
     return response
 
 
 def sign_up(supabase: Client, email: str, password: str):
-    """
-    Register a new user with email + password using Supabase Auth.
-
-    Args:
-        supabase: an initialised supabase-py client.
-        email: the new user's email address.
-        password: the new user's password (Supabase enforces a minimum length).
-
-    Returns:
-        The auth response object. If the project has email confirmation
-        disabled, response.session will be populated and we log the user
-        in immediately. Otherwise response.session will be None and the
-        user must confirm via the email link before logging in.
-    """
+    # Register user; cache session if email confirmation is disabled
     response = supabase.auth.sign_up({"email": email, "password": password})
 
-    # If confirmation is disabled the user is already signed in — cache it.
+    # Auto-login if email confirmation is disabled
     if response.session is not None:
         st.session_state["session"] = response.session
         st.session_state["user"] = response.user
@@ -98,26 +52,15 @@ def sign_up(supabase: Client, email: str, password: str):
 
 
 def logout(supabase: Client) -> None:
-    """
-    Log the current user out and clear the Streamlit session state.
-
-    Args:
-        supabase: an initialised supabase-py client.
-    """
-    # Tell Supabase to invalidate the session on the server.
+    # Invalidate session on server and clear local cache
     supabase.auth.sign_out()
 
-    # Remove cached session info so the UI returns to the login screen.
+    # Clear session so UI shows login screen again
     for key in ("session", "user"):
         if key in st.session_state:
             del st.session_state[key]
 
 
 def get_session():
-    """
-    Return the current logged-in session (or None if not logged in).
-
-    Returns:
-        The Supabase session object stored in st.session_state, or None.
-    """
+    # Return current session from cache, or None if logged out
     return st.session_state.get("session")

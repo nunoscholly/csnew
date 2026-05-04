@@ -1,16 +1,4 @@
-"""
-app.py
-------
-Main Streamlit app for the Event Team Manager.
-
-This file owns the UI and routing. It delegates to:
-    - auth.py      for Supabase Auth
-    - database.py  for Supabase CRUD
-    - ml.py        for the team balance classifier
-
-Run locally with:
-    streamlit run app.py
-"""
+# Main Streamlit app: UI layer that routes between pages and delegates to auth, database, and ML modules.
 
 from datetime import date as date_cls
 
@@ -51,7 +39,7 @@ supabase = st.session_state["supabase"]
 # Login screen
 # ---------------------------------------------------------------------------
 def render_login() -> None:
-    """Render Login and Sign up tabs for unauthenticated users."""
+    # Render login/signup interface for unauthenticated users
     st.title("Event Team Manager")
 
     login_tab, signup_tab = st.tabs(["Log in", "Sign up"])
@@ -105,7 +93,7 @@ def render_login() -> None:
 # Page: Events
 # ---------------------------------------------------------------------------
 def page_events() -> None:
-    """List all events and allow the user to create a new one."""
+    # List events and allow creation/deletion
     st.header("Events")
 
     events = db.get_events(supabase)
@@ -148,7 +136,7 @@ def page_events() -> None:
 # Page: Teams
 # ---------------------------------------------------------------------------
 def page_teams() -> None:
-    """List teams for an event, create them with skill thresholds, recommend candidates."""
+    # Manage teams with skill thresholds and candidate recommendations
     st.header("Teams")
 
     events = db.get_events(supabase)
@@ -247,7 +235,7 @@ def page_teams() -> None:
 # Page: Participants
 # ---------------------------------------------------------------------------
 def page_participants() -> None:
-    """Event-scoped participant pool: list, create, assign, unassign, delete."""
+    # Manage event participants: create, assign to teams, view skills
     st.header("Participants")
 
     events = db.get_events(supabase)
@@ -372,7 +360,7 @@ def page_participants() -> None:
 # Page: Dashboard
 # ---------------------------------------------------------------------------
 def page_dashboard() -> None:
-    """Visualise team sizes, skill distribution and confirmed/pending split."""
+    # Visualize team sizes, skill distribution, and status breakdown
     st.header("Dashboard")
 
     events = db.get_events(supabase)
@@ -412,7 +400,7 @@ def page_dashboard() -> None:
 # Page: ML Insights
 # ---------------------------------------------------------------------------
 def page_ml_insights() -> None:
-    """Run the balance classifier against every team and show predictions."""
+    # Train balance classifier and show predictions for each team
     st.header("ML Insights — Team Balance Classifier")
 
     events = db.get_events(supabase)
@@ -458,7 +446,7 @@ def page_ml_insights() -> None:
 # Sidebar + routing
 # ---------------------------------------------------------------------------
 def render_app() -> None:
-    """Render the sidebar navigation and dispatch to the chosen page."""
+    # Route between pages based on sidebar selection
     user = st.session_state.get("user")
     user_email = getattr(user, "email", "user") if user else "user"
 

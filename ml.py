@@ -1,24 +1,4 @@
-"""
-ml.py
------
-Team balance classifier for the Event Team Manager app.
-
-The model is intentionally simple: a DecisionTreeClassifier predicts
-whether a team is "balanced" or "unbalanced" based on three features
-engineered from the participants table.
-
-Features per team:
-    - team_size: number of participants on the team
-    - num_skills: number of distinct skill values on the team
-    - confirmed_ratio: confirmed members / team_size
-
-Label (target):
-    - "balanced" if the team has at least 3 members, at least 2 distinct
-      skills, and a confirmed_ratio >= 0.5; "unbalanced" otherwise.
-
-A small hardcoded seed dataset is included so the classifier can train
-even before any real participants exist in the database.
-"""
+# Team balance classifier: DecisionTree model predicts "balanced"/"unbalanced" from team size, skill diversity, and confirmation ratio
 
 from typing import Tuple
 
@@ -72,27 +52,10 @@ FEATURE_COLUMNS = ["team_size", "num_skills", "confirmed_ratio"]
 def build_training_data(
     participants_df: pd.DataFrame,
 ) -> Tuple[pd.DataFrame, pd.Series]:
-    """
-    Engineer team-level features from a participants DataFrame.
-
-    Args:
-        participants_df: rows of participants. Expected columns are
-            "team_id", "skill", and "status". May be empty — in which
-            case we fall back to the seed dataset only.
-
-    Returns:
-        A tuple (X, y) where:
-            X is a DataFrame with FEATURE_COLUMNS, one row per team.
-            y is a Series of "balanced" / "unbalanced" labels.
-
-    Notes:
-        We always concatenate the seed dataset to whatever real teams
-        exist. That way the classifier has enough rows to train on
-        even when the database is sparse.
-    """
+    # Engineer team features and apply balance label; combine with seed dataset for initial training
     real_rows = []
     if not participants_df.empty:
-        # Group by team and compute the three features.
+        # Extract team size, skill diversity, and confirmation ratio
         grouped = participants_df.groupby("team_id")
         for _, team_df in grouped:
             team_size = len(team_df)
@@ -121,19 +84,8 @@ def build_training_data(
 
 
 def train_model(X: pd.DataFrame, y: pd.Series) -> DecisionTreeClassifier:
-    """
-    Train a DecisionTreeClassifier on the engineered features.
-
-    Args:
-        X: feature matrix (see FEATURE_COLUMNS).
-        y: target labels ("balanced" / "unbalanced").
-
-    Returns:
-        A fitted DecisionTreeClassifier.
-    """
-    # max_depth keeps the tree small and easy to reason about — good
-    # for a beginner-friendly demo and helps avoid overfitting on the
-    # tiny seed dataset.
+    # Train shallow DecisionTree to balance interpretability and generalization on small seed dataset
+    # Limit depth to avoid overfitting and keep model understandable
     model = DecisionTreeClassifier(max_depth=4, random_state=42)
     model.fit(X, y)
     return model
@@ -143,18 +95,8 @@ def train_model_with_split(
     X: pd.DataFrame,
     y: pd.Series,
 ) -> Tuple[DecisionTreeClassifier, pd.DataFrame, pd.Series]:
-    """
-    Split data, train a DecisionTreeClassifier, and return the test split.
-
-    Args:
-        X: feature matrix (see FEATURE_COLUMNS).
-        y: target labels ("balanced" / "unbalanced").
-
-    Returns:
-        (model, X_test, y_test) — fitted model plus the held-out test split.
-    """
-    # Course requirement: evaluate on unseen data, not training data, so the
-    # reported metrics reflect generalisation rather than memorisation.
+    # Train on split data and return model + held-out test set for evaluation of generalization
+    # Evaluate on unseen data, not training data, to reflect real-world performance
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.30, random_state=42
     )
@@ -166,17 +108,8 @@ def predict_team_balance(
     model: DecisionTreeClassifier,
     team_features: dict,
 ) -> str:
-    """
-    Predict whether a single team is "balanced" or "unbalanced".
-
-    Args:
-        model: a fitted DecisionTreeClassifier.
-        team_features: dict with keys team_size, num_skills, confirmed_ratio.
-
-    Returns:
-        The predicted label as a string.
-    """
-    # Wrap the dict in a one-row DataFrame so column order matches training.
+    # Predict team balance label for a single team
+    # Wrap dict in DataFrame to enforce FEATURE_COLUMNS order
     row = pd.DataFrame([team_features])[FEATURE_COLUMNS]
     return str(model.predict(row)[0])
 
@@ -186,31 +119,13 @@ def evaluation_report(
     X: pd.DataFrame,
     y: pd.Series,
 ) -> str:
-    """
-    Produce a sklearn classification report as a plain text string.
-
-    Args:
-        model: a fitted DecisionTreeClassifier.
-        X: feature matrix to evaluate on (use the held-out test split).
-        y: true labels matching X.
-
-    Returns:
-        A multi-line string with precision, recall, f1-score per class.
-    """
+    # Generate sklearn classification report on test split
     predictions = model.predict(X)
     return classification_report(y, predictions, zero_division=0)
 
 
 def features_for_team(team_participants: pd.DataFrame) -> dict:
-    """
-    Compute the three balance features for one team's participants.
-
-    Args:
-        team_participants: rows of participants belonging to a single team.
-
-    Returns:
-        A dict with keys team_size, num_skills, confirmed_ratio.
-    """
+    # Extract team size, skill diversity, and confirmation ratio from participants
     team_size = len(team_participants)
     if team_size == 0:
         return {"team_size": 0, "num_skills": 0, "confirmed_ratio": 0.0}
@@ -229,28 +144,7 @@ def recommend_candidates(
     candidates_df: pd.DataFrame,
     k: int = 5,
 ) -> pd.DataFrame:
-    """
-    Recommend up to k candidates whose skills best match a team's requirements.
-
-    Steps:
-      1. Filter: keep candidates where every skill >= the team's matching
-         req_<skill> threshold. Thresholds of 0 are no-ops.
-      2. Rank: fit sklearn's NearestNeighbors on the survivors' 9-D skill
-         vectors and query with the team's 9-D requirement vector. Lower
-         distance = closer to the team's stated requirements.
-
-    Args:
-        team_row: a pandas Series with req_<skill> columns for each of
-            the 9 skills (and any other team columns; we ignore them).
-        candidates_df: a DataFrame of candidate participants. Must contain
-            the 9 skill columns plus 'id' and 'name'.
-        k: max number of recommendations to return.
-
-    Returns:
-        A DataFrame with columns id, name, distance, and the 9 skill
-        columns, sorted ascending by distance. Empty if no candidates
-        survive the threshold filter (or candidates_df is empty).
-    """
+    # Recommend k candidates by filtering thresholds then ranking via kNN on skill vectors
     if candidates_df.empty:
         return pd.DataFrame(columns=["id", "name", "distance", *SKILL_COLUMNS])
 
@@ -265,7 +159,7 @@ def recommend_candidates(
     if survivors.empty:
         return pd.DataFrame(columns=["id", "name", "distance", *SKILL_COLUMNS])
 
-    # 2. kNN rank against the team's requirement vector.
+    # Rank survivors by Euclidean distance to team's requirement vector
     n = len(survivors)
     n_neighbors = min(k, n)
     skill_matrix = survivors[SKILL_COLUMNS].to_numpy()
