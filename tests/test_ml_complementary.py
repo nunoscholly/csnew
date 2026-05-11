@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 
-from ml import SKILL_COLUMNS, team_gap_vector
+from ml import SKILL_COLUMNS, recommend_complementary, team_gap_vector
 
 
 def _make_member(**skills):
@@ -41,9 +41,6 @@ def test_gap_vector_clamps_above_max_rating():
     members = pd.DataFrame([_make_member(**{s: 6 for s in SKILL_COLUMNS})])
     g = team_gap_vector(members)
     assert np.all(g == 0.0)
-
-
-from ml import recommend_complementary
 
 
 def _make_candidate(pid, name, **skills):
@@ -135,3 +132,18 @@ def test_recommend_gap_score_is_dot_product_with_gap():
     ])
     out = recommend_complementary(members, candidates, k=1)
     assert out.iloc[0]["gap_score"] == 20.0
+
+
+def test_recommend_prefers_stronger_candidate_when_gap_is_smaller_than_max():
+    # Team weak in construction with max=2 -> gap=3. Stronger candidate (5)
+    # must rank above moderate (4). Regression against the previous target=gap
+    # formulation, where skill=4 (distance 0) wrongly beat skill=5 (distance 2).
+    all_max = {s: 5 for s in SKILL_COLUMNS}
+    all_max["construction"] = 2
+    members = pd.DataFrame([_make_member(**all_max)])
+    candidates = pd.DataFrame([
+        _make_candidate("p1", "Moderate", construction=4),
+        _make_candidate("p2", "Stronger", construction=5),
+    ])
+    out = recommend_complementary(members, candidates, k=2)
+    assert list(out["name"]) == ["Stronger", "Moderate"]

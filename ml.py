@@ -37,16 +37,16 @@ def recommend_complementary(
     k: int = 5,
 ) -> pd.DataFrame:
     # Rank candidates by gap-weighted Euclidean kNN; covered skills contribute zero to distance
-    empty_cols = ["id", "name", "distance", "gap_score", *SKILL_COLUMNS]
+    out_cols = ["id", "name", "distance", "gap_score", *SKILL_COLUMNS]
     if candidates_df.empty:
-        return pd.DataFrame(columns=empty_cols)
+        return pd.DataFrame(columns=out_cols)
 
     g = team_gap_vector(team_participants)
-    if g.sum() == 0:
-        return pd.DataFrame(columns=empty_cols)
+    if not np.any(g):
+        return pd.DataFrame(columns=out_cols)
 
     skill_matrix = candidates_df[list(SKILL_COLUMNS)].to_numpy(dtype=float)
-    target = g  # ideal-complement direction equals the gap itself
+    target = np.where(g > 0, 5.0, 0.0)  # ideal complement: skill 5 in every gap dim, 0 elsewhere
 
     # Pre-scale by sqrt(g): plain Euclidean on scaled vectors equals weighted Euclidean with weights g
     weights = np.sqrt(g)
@@ -61,8 +61,7 @@ def recommend_complementary(
     ordered = candidates_df.iloc[indices[0]].copy()
     ordered["distance"] = distances[0]
     ordered["gap_score"] = skill_matrix[indices[0]] @ g
-    cols = ["id", "name", "distance", "gap_score", *SKILL_COLUMNS]
-    return ordered[cols].reset_index(drop=True)
+    return ordered[out_cols].reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------
