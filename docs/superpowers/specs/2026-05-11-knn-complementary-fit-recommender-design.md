@@ -113,7 +113,7 @@ The existing display-column filter on the Teams page (`show_cols = ["name", "dis
 
 ```
 event_id
-  └─ db.get_teams_with_requirements(supabase, event_id)            -> teams
+  └─ db.get_teams(supabase, event_id)                               -> teams
   └─ db.get_all_participants_for_event(supabase, event_id)         -> participants
        ├─ unassigned = participants[participants.team_id.isna()]
        └─ for each team_id, members:
@@ -131,7 +131,7 @@ No new database queries are introduced.
 | No events in DB | Existing warning ("No events exist yet"), return. |
 | Event has no teams | `st.info("No teams in this event yet.")`, return. |
 | Event has no unassigned participants | `st.info("All participants are already assigned.")`, still show per-team gap analysis but skip rec tables. |
-| Team has zero members (empty team) | Gap = all 5s, recommendations behave like "find generally strong candidates." Show normal recommendation table. |
+| Team has zero members (empty team) | `st.info("No members assigned to this team yet — recommendations skipped.")` and skip the rec table. Recommending "generally strong" candidates for an empty team would be low-signal noise. |
 | Team is fully covered (`g.sum() == 0`) | Show `"Team is fully covered — no gaps."`, skip rec table for that team. |
 | Fewer than `k` unassigned candidates | `min(k, n)` neighbours returned, no error. |
 
