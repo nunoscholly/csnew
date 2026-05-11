@@ -200,9 +200,10 @@ def page_teams() -> None:
             if unassigned.empty:
                 st.info("No unassigned participants to recommend from.")
             else:
-                recs = ml.recommend_candidates(team_row, unassigned, k=5)
+                team_members = all_in_event[all_in_event["team_id"] == team_row["id"]]
+                recs = ml.recommend_complementary(team_members, unassigned, k=5)
                 if recs.empty:
-                    st.info("No candidates match the thresholds for this team.")
+                    st.info("Team is fully covered — no skill gaps left to fill.")
                 else:
                     show_cols = ["name", "distance", *ml.SKILL_COLUMNS]
                     st.dataframe(
@@ -212,8 +213,8 @@ def page_teams() -> None:
                         use_container_width=True,
                     )
                     st.caption(
-                        "Lower distance = closer to the team's stated "
-                        "requirements. Use the Participants page to assign."
+                        "Lower distance = better complement to the team's current skill gaps. "
+                        "Use the Participants page to assign."
                     )
 
         st.divider()
