@@ -434,7 +434,6 @@ def page_dashboard() -> None:
 # Page: ML Insights
 # ---------------------------------------------------------------------------
 def page_ml_insights() -> None:
-    # ML Insights: per-team gap analysis and gap-weighted kNN recommendations for unassigned participants
     st.header("ML Insights — Complementary-Fit Recommender (kNN)")
     st.caption(
         "For each team in the selected event, we identify the skills the team is weakest in "
@@ -462,7 +461,8 @@ def page_ml_insights() -> None:
         return
 
     unassigned = participants[participants["team_id"].isna()]
-    if unassigned.empty:
+    show_recs = not unassigned.empty
+    if not show_recs:
         st.info("All participants in this event are already assigned to teams. Showing gap analysis only.")
 
     for _, team_row in teams.iterrows():
@@ -471,6 +471,10 @@ def page_ml_insights() -> None:
         team_members = participants[participants["team_id"] == team_id]
 
         st.subheader(team_name)
+
+        if team_members.empty:
+            st.info("No members assigned to this team yet — recommendations skipped.")
+            continue
 
         gap = ml.team_gap_vector(team_members)
         if gap.sum() == 0:
@@ -484,7 +488,7 @@ def page_ml_insights() -> None:
         top_gaps = [f"{name} (gap={int(g)})" for name, g in gap_pairs[:3] if g > 0]
         st.markdown("**Weakest skills:** " + ", ".join(top_gaps))
 
-        if unassigned.empty:
+        if not show_recs:
             continue
 
         recs = ml.recommend_complementary(team_members, unassigned, k=5)
