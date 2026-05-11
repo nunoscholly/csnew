@@ -14,7 +14,7 @@ The current ML Insights page trains a `DecisionTreeClassifier` to predict whethe
 ## Scope
 
 - **In scope:** rewrite `ml.py`'s public surface; rewrite `page_ml_insights` in `app.py`; refactor the Teams page recommender to share the same kNN implementation.
-- **Out of scope:** auto team-formation (creating whole teams from scratch); ML Insights for new teams that don't exist yet; changes to database schema; new tests (the repo has no test suite today).
+- **Out of scope:** auto team-formation (creating whole teams from scratch); ML Insights for new teams that don't exist yet; changes to database schema.
 
 ## Definitions
 
@@ -143,18 +143,24 @@ No new database queries are introduced.
 
 ## Testing strategy
 
-This repo has no automated test suite. Verification is manual:
+The repo has a pytest suite at `tests/`. The existing `tests/test_ml_recommend.py` tests `recommend_candidates`, which is being removed; it must be replaced with tests for the new API.
 
-1. Start `streamlit run app.py` locally.
+**Automated (pytest):**
+- `team_gap_vector` — empty team → all-5s; partial team → correct per-skill `max(5 − team_max, 0)`; team with a 5 in every skill → all zeros.
+- `recommend_complementary` —
+  - empty candidates → empty DataFrame with correct columns.
+  - all-zero gap (fully covered team) → empty DataFrame.
+  - candidate strong in the gap skill ranks above candidate weak in it.
+  - skills already covered by the team are ignored in ranking (a candidate weak in a covered skill is *not* penalized).
+  - `k` caps result count; fewer-than-k candidates returns all of them.
+  - output schema includes `id, name, distance, gap_score, *SKILL_COLUMNS`.
+
+**Manual (Streamlit UI):**
+1. `streamlit run app.py`.
 2. Select an event with at least one team and several unassigned participants.
-3. Confirm ML Insights renders without error.
-4. Spot-check: for a team whose weakest skill is X, top-ranked recommendations should have higher X ratings than bottom-ranked.
-5. Confirm Teams page still renders recommendations after the refactor.
-6. Confirm the page works with an event that has no teams, and with an event where all participants are assigned.
-
-If we add a test suite later, the natural unit tests are:
-- `team_gap_vector` on empty / partial / full teams.
-- `recommend_complementary` with known small inputs where the expected ranking is hand-computable.
+3. ML Insights renders without error; gap summary lists weakest skills; recommendations rank candidates strong in those skills highest.
+4. Teams page still renders recommendations after the refactor.
+5. Edge cases: event with no teams; event where all participants are assigned; team fully covered (no gaps).
 
 ## Migration / rollout
 
