@@ -64,7 +64,7 @@ def recommend_complementary(
 2. If `g.sum() == 0`, return empty result (team is fully covered).
 3. If `candidates_df` is empty, return empty result.
 4. Build the candidate skill matrix `X` (shape `n × 9`) from `candidates_df[SKILL_COLUMNS]`.
-5. Build the target vector `t = g` (the "ideal complement" points in the gap direction).
+5. Build the target vector `t` so that `t_i = 5` wherever `g_i > 0` and `t_i = 0` elsewhere. The "ideal candidate" is maximum strength in every gap dimension; covered dimensions don't contribute to distance anyway because their weight is zero.
 6. **Pre-scale** both `X` and `t` element-wise by `√g`:
    - `X_scaled = X * np.sqrt(g)`
    - `t_scaled = t * np.sqrt(g)`
