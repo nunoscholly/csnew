@@ -1,14 +1,19 @@
 # Main Streamlit app: UI layer that routes between pages and delegates to auth, database, and ML modules.
 
+import random
 from datetime import date as date_cls
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import requests
 import streamlit as st
 
 import auth
 import database as db
 import ml
+
+# External API endpoint used to seed demo participants with realistic names
+RANDOMUSER_API_URL = "https://randomuser.me/api/"
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +237,45 @@ def page_teams() -> None:
 
 
 # ---------------------------------------------------------------------------
+# External API: randomuser.me — seeds demo participants
+# ---------------------------------------------------------------------------
+# We hit a free public REST API to grab realistic-looking demo names. This
+# satisfies the "external API" requirement and saves you from typing 20
+# fake names by hand. Skill ratings are randomised since randomuser.me
+# only returns identity data (name, email, photo, etc.).
+def fetch_random_users(count: int) -> list[dict]:
+    # Call randomuser.me and return a list of fabricated participant dicts.
+    # Each dict has: name (str), skill ratings (1-5 for each of the 9 skills),
+    # legacy skill label, and a randomly chosen status.
+    response = requests.get(
+        RANDOMUSER_API_URL,
+        params={"results": count, "nat": "ch,de,gb,us"},
+        timeout=10,
+    )
+    # raise_for_status() converts HTTP 4xx/5xx into a Python exception so we
+    # can catch it in the caller and show a friendly error in the UI.
+    response.raise_for_status()
+    data = response.json()
+
+    # Build participant payloads from the API response. randomuser.me wraps
+    # results in a top-level "results" key, each entry has a nested name dict.
+    seeded = []
+    for user in data.get("results", []):
+        full_name = f"{user['name']['first']} {user['name']['last']}"
+        # Random 1-5 rating per skill — gives the kNN recommender variety.
+        skills = {s: random.randint(1, 5) for s in ml.SKILL_COLUMNS}
+        seeded.append(
+            {
+                "name": full_name,
+                "skills": skills,
+                "skill": random.choice(["design", "engineering", "business", "other"]),
+                "status": random.choice(["pending", "confirmed"]),
+            }
+        )
+    return seeded
+
+
+# ---------------------------------------------------------------------------
 # Page: Participants
 # ---------------------------------------------------------------------------
 def page_participants() -> None:
@@ -254,11 +298,87 @@ def page_participants() -> None:
     if participants.empty:
         st.info("No participants in this event yet.")
     else:
-        display_cols = [col for col in ["name", "team_name", "status", *ml.SKILL_COLUMNS] if col in participants.columns]
+        # Filter UI: lets the user narrow the participants table by status
+        # and/or by legacy skill label. We use multiselect (not selectbox) so
+        # an empty selection means "no filter" — a friendlier default than
+        # forcing the user to pick "All" from a dropdown.
+        st.subheader("Filter participants")
+        filter_col1, filter_col2 = st.columns(2)
+        with filter_col1:
+            # Statuses are a small fixed set, so we hardcode them rather
+            # than computing unique() from the dataframe (avoids surprises
+            # when the column is empty).
+            status_filter = st.multiselect(
+                "Filter by status",
+                ["pending", "confirmed"],
+                default=[],
+                key=f"status_filter_{event_id}",
+            )
+        with filter_col2:
+            skill_filter = st.multiselect(
+                "Filter by skill (legacy label)",
+                ["design", "engineering", "business", "other"],
+                default=[],
+                key=f"skill_filter_{event_id}",
+            )
+
+        # Apply filters cumulatively. Each empty list is a no-op so users
+        # can combine them freely (e.g. "confirmed" + "design").
+        filtered = participants.copy()
+        if status_filter:
+            filtered = filtered[filtered["status"].isin(status_filter)]
+        if skill_filter:
+            filtered = filtered[filtered["skill"].isin(skill_filter)]
+
+        display_cols = [col for col in ["name", "team_name", "status", *ml.SKILL_COLUMNS] if col in filtered.columns]
+        st.caption(f"Showing {len(filtered)} of {len(participants)} participants")
         st.dataframe(
-            participants[display_cols].fillna({"team_name": "Unassigned"}),
+            filtered[display_cols].fillna({"team_name": "Unassigned"}),
             use_container_width=True,
         )
+
+    # ---- Seed demo participants from randomuser.me --------------------
+    # Calls a public REST API to populate the event with fake-but-realistic
+    # participants. Useful for demos and for satisfying the "external API"
+    # project requirement.
+    st.divider()
+    st.subheader("Seed demo participants (randomuser.me)")
+    st.caption(
+        "Fetches random people from the public randomuser.me API and adds "
+        "them to this event with randomised skill ratings."
+    )
+    seed_col1, seed_col2 = st.columns([1, 3])
+    with seed_col1:
+        # number_input keeps the count bounded — randomuser.me allows up to
+        # 5000 but we cap at 20 to stay polite and keep the UI responsive.
+        seed_count = st.number_input(
+            "How many?", min_value=1, max_value=20, value=5, step=1,
+            key=f"seed_count_{event_id}",
+        )
+    with seed_col2:
+        if st.button("Seed from randomuser.me", key=f"seed_btn_{event_id}"):
+            try:
+                fake_users = fetch_random_users(int(seed_count))
+                # Insert each fetched user as a participant. We reuse the
+                # existing add_participant() helper so the seeded rows go
+                # through the same validation/SKILL_COLUMNS filter as
+                # manually added ones.
+                for u in fake_users:
+                    db.add_participant(
+                        supabase,
+                        event_id=event_id,
+                        name=u["name"],
+                        skills=u["skills"],
+                        skill=u["skill"],
+                        status=u["status"],
+                        team_id=None,
+                    )
+                st.success(f"Seeded {len(fake_users)} demo participants.")
+                st.rerun()
+            except requests.RequestException as e:
+                # Network error or non-2xx response — surface a friendly
+                # message instead of leaking the raw stack trace to the UI.
+                st.error(f"Could not reach randomuser.me: {e}")
 
     st.divider()
     st.subheader("Add a participant")
