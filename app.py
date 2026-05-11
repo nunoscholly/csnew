@@ -434,8 +434,13 @@ def page_dashboard() -> None:
 # Page: ML Insights
 # ---------------------------------------------------------------------------
 def page_ml_insights() -> None:
-    # Train balance classifier and show predictions for each team
-    st.header("ML Insights — Team Balance Classifier")
+    # ML Insights: per-team gap analysis and gap-weighted kNN recommendations for unassigned participants
+    st.header("ML Insights — Complementary-Fit Recommender (kNN)")
+    st.caption(
+        "For each team in the selected event, we identify the skills the team is weakest in "
+        "(the gap) and use scikit-learn's k-Nearest-Neighbors to suggest unassigned participants "
+        "whose strengths best fill that gap."
+    )
 
     events = db.get_events(supabase)
     if events.empty:
@@ -446,34 +451,62 @@ def page_ml_insights() -> None:
     event_label = st.selectbox("Select event", list(event_options.keys()))
     event_id = event_options[event_label]
 
-    participants = db.get_all_participants_for_event(supabase, event_id)
-
-    # Train on real data + seed rows. ml.build_training_data handles empty input.
-    X, y = ml.build_training_data(participants)
-    model, X_test, y_test = ml.train_model_with_split(X, y)
-
-    st.subheader("Classification report (held-out test data)")
-    st.code(ml.evaluation_report(model, X_test, y_test))
-
-    st.subheader("Predictions per team")
-    if participants.empty:
-        st.info("No teams to predict on yet — add participants first.")
+    teams = db.get_teams(supabase, event_id)
+    if teams.empty:
+        st.info("No teams in this event yet.")
         return
 
-    rows = []
-    for team_id, team_df in participants.groupby("team_id"):
-        feats = ml.features_for_team(team_df)
-        prediction = ml.predict_team_balance(model, feats)
-        rows.append(
-            {
-                "team": team_df["team_name"].iloc[0],
-                "team_size": feats["team_size"],
-                "num_skills": feats["num_skills"],
-                "confirmed_ratio": round(feats["confirmed_ratio"], 2),
-                "prediction": prediction,
-            }
+    participants = db.get_all_participants_for_event(supabase, event_id)
+    if participants.empty:
+        st.info("No participants in this event yet — add some on the Participants page.")
+        return
+
+    unassigned = participants[participants["team_id"].isna()]
+    if unassigned.empty:
+        st.info("All participants in this event are already assigned to teams. Showing gap analysis only.")
+
+    for _, team_row in teams.iterrows():
+        team_id = team_row["id"]
+        team_name = team_row["name"]
+        team_members = participants[participants["team_id"] == team_id]
+
+        st.subheader(team_name)
+
+        gap = ml.team_gap_vector(team_members)
+        if gap.sum() == 0:
+            st.success("Team is fully covered — no skill gaps.")
+            continue
+
+        # Top-3 weakest skills (largest gap values)
+        gap_pairs = sorted(
+            zip(ml.SKILL_COLUMNS, gap), key=lambda kv: kv[1], reverse=True
         )
-    st.dataframe(pd.DataFrame(rows), use_container_width=True)
+        top_gaps = [f"{name} (gap={int(g)})" for name, g in gap_pairs[:3] if g > 0]
+        st.markdown("**Weakest skills:** " + ", ".join(top_gaps))
+
+        if unassigned.empty:
+            continue
+
+        recs = ml.recommend_complementary(team_members, unassigned, k=5)
+        if recs.empty:
+            st.info("No suitable unassigned candidates.")
+            continue
+
+        show_cols = ["name", "distance", "gap_score", *ml.SKILL_COLUMNS]
+        st.dataframe(
+            recs[show_cols].assign(
+                distance=recs["distance"].round(2),
+                gap_score=recs["gap_score"].round(2),
+            ),
+            use_container_width=True,
+        )
+
+    st.divider()
+    st.caption(
+        "Method: gap-weighted Euclidean kNN over 9-dimensional skill vectors. "
+        "Lower distance = better complement; gap_score is the dot product of "
+        "the candidate's skills with the team's gap vector (higher = covers more gap)."
+    )
 
 
 # ---------------------------------------------------------------------------
