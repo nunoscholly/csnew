@@ -22,6 +22,15 @@ SKILL_COLUMNS = [
 ]
 
 
+def team_gap_vector(team_participants: pd.DataFrame) -> np.ndarray:
+    # Returns 9-dim vector of max(5 - team_max_skill, 0) per skill; empty team -> all 5s
+    if team_participants.empty:
+        return np.full(len(SKILL_COLUMNS), 5.0)
+    team_max = team_participants[list(SKILL_COLUMNS)].max(axis=0).to_numpy(dtype=float)
+    gap = np.maximum(5.0 - team_max, 0.0)
+    return gap
+
+
 # ---------------------------------------------------------------------------
 # Seed dataset
 # ---------------------------------------------------------------------------
