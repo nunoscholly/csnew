@@ -31,6 +31,40 @@ def team_gap_vector(team_participants: pd.DataFrame) -> np.ndarray:
     return gap
 
 
+def recommend_complementary(
+    team_participants: pd.DataFrame,
+    candidates_df: pd.DataFrame,
+    k: int = 5,
+) -> pd.DataFrame:
+    # Rank candidates by gap-weighted Euclidean kNN; covered skills contribute zero to distance
+    empty_cols = ["id", "name", "distance", "gap_score", *SKILL_COLUMNS]
+    if candidates_df.empty:
+        return pd.DataFrame(columns=empty_cols)
+
+    g = team_gap_vector(team_participants)
+    if g.sum() == 0:
+        return pd.DataFrame(columns=empty_cols)
+
+    skill_matrix = candidates_df[list(SKILL_COLUMNS)].to_numpy(dtype=float)
+    target = g  # ideal-complement direction equals the gap itself
+
+    # Pre-scale by sqrt(g): plain Euclidean on scaled vectors equals weighted Euclidean with weights g
+    weights = np.sqrt(g)
+    scaled_matrix = skill_matrix * weights
+    scaled_target = target * weights
+
+    n_neighbors = min(k, len(candidates_df))
+    knn = NearestNeighbors(n_neighbors=n_neighbors, metric="euclidean")
+    knn.fit(scaled_matrix)
+    distances, indices = knn.kneighbors([scaled_target])
+
+    ordered = candidates_df.iloc[indices[0]].copy()
+    ordered["distance"] = distances[0]
+    ordered["gap_score"] = skill_matrix[indices[0]] @ g
+    cols = ["id", "name", "distance", "gap_score", *SKILL_COLUMNS]
+    return ordered[cols].reset_index(drop=True)
+
+
 # ---------------------------------------------------------------------------
 # Seed dataset
 # ---------------------------------------------------------------------------
