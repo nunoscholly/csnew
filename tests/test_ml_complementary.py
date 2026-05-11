@@ -36,8 +36,8 @@ def test_gap_vector_fully_covered_team_is_all_zeros():
     assert np.all(g == 0.0)
 
 
-def test_gap_vector_never_negative():
-    # If somehow team_max exceeds 5, gap is clamped at 0 (defensive)
-    members = pd.DataFrame([_make_member(**{s: 5 for s in SKILL_COLUMNS})])
+def test_gap_vector_clamps_above_max_rating():
+    # Skills above 5 (e.g. admin entered 6) must not produce negative gaps
+    members = pd.DataFrame([_make_member(**{s: 6 for s in SKILL_COLUMNS})])
     g = team_gap_vector(members)
-    assert np.all(g >= 0)
+    assert np.all(g == 0.0)
