@@ -1,0 +1,65 @@
+-- Seed 50 diverse, unassigned participants into the START Summit event.
+-- Run in the Supabase SQL editor while logged in (RLS requires authenticated user).
+
+with ev as (
+  select id from public.events where name = 'START Summit' limit 1
+)
+insert into public.participants
+  (event_id, team_id, name, status,
+   strength, driving, design, social, construction, english, german, photography, leadership)
+select ev.id, null, v.name, 'pending',
+       v.strength, v.driving, v.design, v.social, v.construction,
+       v.english, v.german, v.photography, v.leadership
+from ev,
+(values
+  ('Rafael Hoffmann', 1, 3, 2, 4, 1, 5, 3, 1, 5),
+  ('Eva Weber', 5, 3, 1, 1, 5, 3, 1, 3, 1),
+  ('Jan Jung', 2, 1, 5, 3, 2, 2, 2, 4, 1),
+  ('Sofia Pichler', 1, 2, 2, 4, 2, 3, 5, 2, 3),
+  ('Sofia Vogel', 2, 3, 3, 3, 3, 5, 4, 1, 4),
+  ('Sofia Schroeder', 3, 5, 2, 2, 3, 2, 1, 2, 2),
+  ('Andrei Zimmermann', 3, 3, 3, 5, 3, 4, 3, 3, 4),
+  ('Tim Zimmermann', 3, 3, 4, 3, 3, 2, 1, 5, 1),
+  ('Marie Meyer', 5, 3, 3, 2, 4, 3, 2, 2, 3),
+  ('Leon Schulz', 4, 4, 5, 3, 4, 3, 3, 3, 3),
+  ('Chiara Mayer', 1, 1, 5, 2, 1, 2, 2, 1, 2),
+  ('Hugo Koenig', 2, 3, 4, 3, 1, 4, 2, 4, 2),
+  ('Henri Engel', 3, 1, 3, 4, 2, 3, 1, 2, 5),
+  ('Anna Stein', 5, 5, 3, 2, 5, 3, 1, 1, 3),
+  ('Jonas Schwarz', 3, 3, 5, 4, 3, 3, 3, 4, 3),
+  ('Andrei Peters', 2, 2, 3, 5, 1, 3, 5, 1, 2),
+  ('Luna Schroeder', 3, 1, 1, 4, 3, 5, 2, 1, 3),
+  ('Aaron Neumann', 4, 5, 2, 1, 3, 1, 3, 3, 3),
+  ('Anna Frank', 2, 1, 1, 5, 3, 5, 5, 2, 3),
+  ('Chiara Peters', 3, 1, 3, 4, 3, 2, 1, 5, 1),
+  ('Jan Schulz', 5, 5, 2, 2, 3, 1, 2, 3, 1),
+  ('Henri Mueller', 3, 4, 5, 4, 4, 4, 4, 4, 4),
+  ('Elias Braun', 1, 5, 1, 1, 1, 1, 1, 1, 1),
+  ('Mia Stein', 1, 3, 5, 1, 3, 5, 2, 3, 4),
+  ('Freya Hofer', 1, 2, 2, 4, 3, 3, 2, 2, 5),
+  ('Ida Keller', 4, 3, 1, 3, 5, 3, 2, 1, 2),
+  ('Nora Braun', 1, 2, 5, 4, 2, 3, 3, 5, 1),
+  ('Andrei Becker', 1, 2, 1, 3, 3, 5, 5, 2, 2),
+  ('Freya Berger', 1, 3, 3, 4, 3, 5, 4, 1, 4),
+  ('Noah Mueller', 4, 5, 3, 2, 1, 3, 2, 3, 3),
+  ('Luna Mueller', 1, 1, 3, 5, 3, 4, 4, 3, 3),
+  ('Noah Krueger', 2, 1, 5, 3, 3, 1, 3, 5, 2),
+  ('Ines Schuster', 5, 5, 1, 1, 4, 1, 1, 3, 2),
+  ('Isla Neumann', 4, 4, 4, 3, 5, 3, 3, 4, 4),
+  ('Mateo Engel', 1, 5, 1, 2, 1, 1, 2, 2, 2),
+  ('Oskar Lorenz', 1, 2, 4, 1, 2, 5, 3, 4, 2),
+  ('Andrei Berger', 3, 2, 3, 5, 3, 4, 3, 2, 5),
+  ('Sara Koehler', 4, 5, 1, 1, 5, 3, 2, 3, 3),
+  ('Theo Krueger', 2, 3, 5, 4, 2, 1, 2, 5, 3),
+  ('Ida Lang', 2, 3, 1, 5, 2, 4, 5, 3, 1),
+  ('Andrei Walter', 3, 2, 1, 3, 3, 5, 2, 1, 3),
+  ('Niko Keller', 4, 5, 2, 3, 3, 1, 3, 3, 2),
+  ('Sara Neumann', 1, 3, 3, 5, 1, 5, 3, 1, 3),
+  ('Mia Roth', 1, 2, 5, 4, 3, 3, 2, 5, 3),
+  ('Eva Vogel', 5, 4, 3, 2, 5, 2, 1, 3, 2),
+  ('Rafael Neumann', 3, 3, 3, 3, 4, 3, 5, 3, 4),
+  ('Lara Kaiser', 2, 2, 1, 2, 2, 2, 2, 5, 2),
+  ('Marie Mayer', 2, 1, 5, 2, 3, 4, 2, 5, 4),
+  ('Emma Steiner', 3, 3, 3, 4, 1, 3, 2, 1, 5),
+  ('Leon Pichler', 4, 4, 2, 2, 5, 2, 2, 2, 2)
+) as v(name, strength, driving, design, social, construction, english, german, photography, leadership);
