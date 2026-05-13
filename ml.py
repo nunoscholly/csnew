@@ -25,13 +25,31 @@ def skill_label(skill: str) -> str:
     return skill.replace("_", " ").title()
 
 
+def _backfill_missing_skills(df: pd.DataFrame, default: int) -> pd.DataFrame:
+    # If a skill column declared in SKILL_COLUMNS is missing from the DataFrame
+    # (e.g. its DB migration hasn't been applied yet), inject it with `default`
+    # so downstream operations don't KeyError. Use default=5 for team data
+    # (treats the skill as fully covered, gap=0) and default=3 for candidates
+    # (neutral midpoint). With gap=0 the weight is zero, so the value of the
+    # candidate's filled column doesn't affect ranking anyway.
+    missing = [c for c in SKILL_COLUMNS if c not in df.columns]
+    if not missing:
+        return df
+    df = df.copy()
+    for c in missing:
+        df[c] = default
+    return df
+
+
 def team_gap_vector(team_participants: pd.DataFrame) -> np.ndarray:
-    # Returns 9-dim vector of max(5 - team_max_skill, 0) per skill; empty team -> all 5s
+    # Returns a len(SKILL_COLUMNS)-dim vector of max(5 - team_max_skill, 0);
+    # empty team -> all 5s. Skills missing from the DataFrame are treated as
+    # already covered (gap=0) so they don't drive recommendations.
     if team_participants.empty:
         return np.full(len(SKILL_COLUMNS), 5.0)
-    team_max = team_participants[list(SKILL_COLUMNS)].max(axis=0).to_numpy(dtype=float)
-    gap = np.maximum(5.0 - team_max, 0.0)
-    return gap
+    df = _backfill_missing_skills(team_participants, default=5)
+    team_max = df[list(SKILL_COLUMNS)].max(axis=0).to_numpy(dtype=float)
+    return np.maximum(5.0 - team_max, 0.0)
 
 
 def recommend_complementary(
@@ -48,6 +66,7 @@ def recommend_complementary(
     if not np.any(g):
         return pd.DataFrame(columns=out_cols)
 
+    candidates_df = _backfill_missing_skills(candidates_df, default=3)
     skill_matrix = candidates_df[list(SKILL_COLUMNS)].to_numpy(dtype=float)
     target = np.where(g > 0, 5.0, 0.0)  # ideal complement: skill 5 in every gap dim, 0 elsewhere
 
