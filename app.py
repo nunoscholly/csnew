@@ -438,8 +438,18 @@ def page_dashboard() -> None:
     team_row = teams_df[teams_df["id"] == team_id].iloc[0]
     team_members = participants[participants["team_id"] == team_id]
 
-    avg = team_members[ml.SKILL_COLUMNS].mean().to_numpy(dtype=float)
-    req = np.array([team_row[f"req_{s}"] for s in ml.SKILL_COLUMNS], dtype=float)
+    # Defensive against un-applied DB migrations: skills/req columns missing
+    # from the data become neutral (avg=3, req=0) so the radar still renders.
+    avg = np.array(
+        [float(team_members[s].mean()) if s in team_members.columns else 3.0
+         for s in ml.SKILL_COLUMNS],
+        dtype=float,
+    )
+    req = np.array(
+        [float(team_row[f"req_{s}"]) if f"req_{s}" in team_row.index else 0.0
+         for s in ml.SKILL_COLUMNS],
+        dtype=float,
+    )
     angles = np.linspace(0, 2 * np.pi, len(ml.SKILL_COLUMNS), endpoint=False)
     angles_loop = np.concatenate([angles, angles[:1]])
     avg_loop = np.concatenate([avg, avg[:1]])
