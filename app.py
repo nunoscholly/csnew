@@ -52,7 +52,7 @@ UNASSIGNED_LABEL = "Nicht zugewiesen"
 # ---------------------------------------------------------------------------
 def render_login() -> None:
     # Login-/Registrierungs-Oberfläche für nicht angemeldete Nutzer rendern
-    st.title("Event-Team-Manager")
+    st.title("STARTCrew")
 
     login_tab, signup_tab = st.tabs(["Anmelden", "Registrieren"])
 
@@ -599,7 +599,7 @@ def render_app() -> None:
     user = st.session_state.get("user")
     user_email = getattr(user, "email", "user") if user else "user"
 
-    st.sidebar.title("Event-Team-Manager")
+    st.sidebar.title("STARTCrew")
     st.sidebar.caption(f"Angemeldet als: {user_email}")
 
     page = st.sidebar.radio(

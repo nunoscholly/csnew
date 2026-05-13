@@ -1,4 +1,4 @@
-# Event Team Manager
+# STARTCrew
 
 A simple Streamlit web app for managing teams at events such as hackathons.
 Built for the HSG St. Gallen Computer Science project.
