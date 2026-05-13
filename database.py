@@ -173,24 +173,25 @@ def get_all_participants_for_event(
     supabase: Client,
     event_id: str,
 ) -> pd.DataFrame:
-    # Fetch all participants across all teams for event; use two queries then pandas join for clarity
-    teams = get_teams(supabase, event_id)
-    if teams.empty:
-        return pd.DataFrame()
-
-    # Filter participants by event's team IDs
-    team_ids = teams["id"].tolist()
+    # Fetch every participant in this event — assigned to a team OR still in the
+    # unassigned pool (team_id IS NULL). We filter on participants.event_id directly
+    # rather than via team_id, otherwise unassigned participants would be excluded.
     response = (
         supabase.table("participants")
         .select("*")
-        .in_("team_id", team_ids)
+        .eq("event_id", event_id)
         .execute()
     )
     participants = pd.DataFrame(response.data)
     if participants.empty:
         return participants
 
-    # Add a readable team_name column by merging on team_id.
+    # Attach a readable team_name column (NaN for unassigned).
+    teams = get_teams(supabase, event_id)
+    if teams.empty:
+        participants["team_name"] = None
+        return participants
+
     teams_slim = teams[["id", "name"]].rename(
         columns={"id": "team_id", "name": "team_name"}
     )
