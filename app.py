@@ -587,54 +587,6 @@ def page_ml_insights() -> None:
             "classification_report (precision, recall, F1, accuracy)."
         )
 
-        # -----------------------------------------------------------------
-        # Actually USE the trained classifier on a hypothetical new person
-        # -----------------------------------------------------------------
-        st.subheader(f"Predict `{skill_choice}` for a new participant")
-        st.caption(
-            f"Move the 8 sliders to describe a hypothetical participant. The model "
-            f"trained above predicts whether their `{skill_choice}` is **high** "
-            f"(≥ {detail['threshold']}) or **low**."
-        )
-
-        feature_cols = detail["feature_cols"]
-        col_left, col_right = st.columns(2)
-        slider_values = {}
-        for i, feature in enumerate(feature_cols):
-            target_col = col_left if i % 2 == 0 else col_right
-            slider_values[feature] = target_col.slider(
-                feature.capitalize(),
-                min_value=1, max_value=5, value=3,
-                key=f"predict_input_{skill_choice}_{feature}",
-            )
-
-        clf = detail["classifier"]
-        X_new = np.array([[slider_values[f] for f in feature_cols]], dtype=float)
-        prediction = int(clf.predict(X_new)[0])
-        proba = clf.predict_proba(X_new)[0]
-
-        # KNeighborsClassifier exposes classes_ in sorted order; map index -> label
-        classes = list(clf.classes_)
-        prob_high = float(proba[classes.index(1)]) if 1 in classes else 0.0
-
-        if prediction == 1:
-            st.success(
-                f"Predicted **high** on `{skill_choice}` (≥ {detail['threshold']}). "
-                f"Vote share among {detail['k']} neighbors: **{prob_high:.0%} high** / "
-                f"{(1 - prob_high):.0%} low."
-            )
-        else:
-            st.info(
-                f"Predicted **low** on `{skill_choice}` (< {detail['threshold']}). "
-                f"Vote share among {detail['k']} neighbors: **{(1 - prob_high):.0%} low** / "
-                f"{prob_high:.0%} high."
-            )
-        st.caption(
-            f"Prediction = majority vote among the {detail['k']} most similar "
-            f"participants in the training set. Probability is the share of those "
-            f"neighbors with the predicted label."
-        )
-
 
 # ---------------------------------------------------------------------------
 # Sidebar + routing
