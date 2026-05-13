@@ -539,6 +539,54 @@ def page_ml_insights() -> None:
         "the candidate's skills with the team's gap vector (higher = covers more gap)."
     )
 
+    # -------------------------------------------------------------------
+    # Supervised skill-imputation classifier
+    # -------------------------------------------------------------------
+    st.divider()
+    st.header("Supervised: Skill-Imputation Classifier (kNN)")
+    st.caption(
+        "Predicts whether a participant is 'high' (rating ≥ 4) on a target skill "
+        "given their other 8 skill ratings. Trained with a train/test split per skill; "
+        "labels are real ratings from the database, so this is genuine supervised learning."
+    )
+
+    threshold = st.slider("'High' threshold", min_value=2, max_value=5, value=ml.HIGH_SKILL_THRESHOLD)
+    k = st.slider("k (neighbors)", min_value=1, max_value=15, value=5)
+
+    summary = ml.evaluate_all_skills(participants, threshold=threshold, k=k)
+    display_summary = summary.assign(
+        accuracy=summary["accuracy"].round(3),
+        precision_high=summary["precision_high"].round(3),
+        recall_high=summary["recall_high"].round(3),
+        f1_high=summary["f1_high"].round(3),
+    )
+    st.subheader("Per-skill metrics (test set)")
+    st.dataframe(display_summary, use_container_width=True)
+
+    st.subheader("Detailed classification report")
+    skill_choice = st.selectbox("Inspect skill", ml.SKILL_COLUMNS)
+    detail = ml.train_skill_classifier(participants, skill_choice, threshold=threshold, k=k)
+    if "error" in detail:
+        st.warning(f"Cannot train for '{skill_choice}': {detail['error']}")
+    else:
+        st.markdown(
+            f"**Target:** `{skill_choice} >= {detail['threshold']}` · "
+            f"**Features:** other 8 skills · "
+            f"**Train/test:** {detail['n_train']} / {detail['n_test']} · "
+            f"**k:** {detail['k']}"
+        )
+        report_df = pd.DataFrame(detail["report"]).T
+        for col in ("precision", "recall", "f1-score"):
+            if col in report_df.columns:
+                report_df[col] = report_df[col].astype(float).round(3)
+        if "support" in report_df.columns:
+            report_df["support"] = report_df["support"].astype(int)
+        st.dataframe(report_df, use_container_width=True)
+        st.caption(
+            "Workflow: train_test_split → KNeighborsClassifier.fit → predict → "
+            "classification_report (precision, recall, F1, accuracy)."
+        )
+
 
 # ---------------------------------------------------------------------------
 # Sidebar + routing
