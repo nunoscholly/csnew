@@ -67,7 +67,21 @@ def create_team(
     payload = {"event_id": event_id, "name": name}
     if thresholds:
         payload.update(thresholds)
-    response = supabase.table("teams").insert(payload).execute()
+    try:
+        response = supabase.table("teams").insert(payload).execute()
+    except Exception as exc:
+        # Gleicher Mechanismus wie bei add_participant: wenn die neueren
+        # req_*-Spalten in der Ziel-DB noch nicht existieren, ohne diese
+        # erneut versuchen.
+        optional = [f"req_{c}" for c in _OPTIONAL_SKILL_COLUMNS]
+        if not any(col in payload for col in optional):
+            raise
+        for col in optional:
+            payload.pop(col, None)
+        try:
+            response = supabase.table("teams").insert(payload).execute()
+        except Exception:
+            raise exc
     return response.data[0]
 
 

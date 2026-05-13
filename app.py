@@ -195,9 +195,13 @@ def page_teams() -> None:
         if not team_name:
             st.warning("Teamname ist erforderlich.")
         else:
-            db.create_team(supabase, event_id, team_name, thresholds_input)
-            st.success(f"Team '{team_name}' erstellt.")
-            st.rerun()
+            try:
+                db.create_team(supabase, event_id, team_name, thresholds_input)
+            except Exception as exc:
+                st.error(f"Fehler beim Erstellen des Teams: {exc}")
+            else:
+                st.success(f"Team '{team_name}' erstellt.")
+                st.rerun()
 
     if not teams.empty:
         st.divider()
