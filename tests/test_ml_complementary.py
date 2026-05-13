@@ -1,4 +1,4 @@
-# Unit tests for the gap-weighted kNN recommender (ml.team_gap_vector, ml.recommend_complementary)
+# Unit-Tests für den lückengewichteten kNN-Empfehler (ml.team_gap_vector, ml.recommend_complementary)
 import numpy as np
 import pandas as pd
 
@@ -6,7 +6,7 @@ from ml import SKILL_COLUMNS, recommend_complementary, team_gap_vector
 
 
 def _make_member(**skills):
-    # Build fake participant row; defaults each skill to 3
+    # Künstliche Teilnehmerzeile aufbauen; jeder Skill defaultet auf 3
     row = {s: 3 for s in SKILL_COLUMNS}
     row.update(skills)
     return row
@@ -24,7 +24,7 @@ def test_gap_vector_uses_max_per_skill():
         _make_member(strength=3, leadership=4),
     ])
     g = team_gap_vector(members)
-    # strength max=5 -> gap 0; leadership max=4 -> gap 1; others default max=3 -> gap 2
+    # strength max=5 -> Lücke 0; leadership max=4 -> Lücke 1; restliche Default-max=3 -> Lücke 2
     assert g[SKILL_COLUMNS.index("strength")] == 0
     assert g[SKILL_COLUMNS.index("leadership")] == 1
     assert g[SKILL_COLUMNS.index("design")] == 2
@@ -37,14 +37,14 @@ def test_gap_vector_fully_covered_team_is_all_zeros():
 
 
 def test_gap_vector_clamps_above_max_rating():
-    # Skills above 5 (e.g. admin entered 6) must not produce negative gaps
+    # Skills über 5 (z.B. wenn ein Admin 6 eingetragen hat) dürfen keine negativen Lücken erzeugen
     members = pd.DataFrame([_make_member(**{s: 6 for s in SKILL_COLUMNS})])
     g = team_gap_vector(members)
     assert np.all(g == 0.0)
 
 
 def _make_candidate(pid, name, **skills):
-    # Build candidate row; defaults each skill to 3, plus id/name
+    # Kandidatenzeile aufbauen; jeder Skill defaultet auf 3, zusätzlich id/name
     row = {s: 3 for s in SKILL_COLUMNS}
     row.update(skills)
     row["id"] = pid
@@ -61,7 +61,7 @@ def test_recommend_empty_candidates_returns_empty_with_columns():
 
 
 def test_recommend_fully_covered_team_returns_empty():
-    # Team has max=5 in every skill -> no gaps -> nothing to complement
+    # Team hat max=5 in jedem Skill -> keine Lücken -> nichts zu ergänzen
     members = pd.DataFrame([_make_member(**{s: 5 for s in SKILL_COLUMNS})])
     candidates = pd.DataFrame([_make_candidate("p1", "Alice")])
     out = recommend_complementary(members, candidates)
@@ -69,7 +69,7 @@ def test_recommend_fully_covered_team_returns_empty():
 
 
 def test_recommend_ranks_gap_filling_candidate_first():
-    # Team is weak in 'construction' (max=1). Other skills covered (max=5).
+    # Team ist schwach in 'construction' (max=1). Andere Skills abgedeckt (max=5).
     all_max = {s: 5 for s in SKILL_COLUMNS}
     all_max["construction"] = 1
     members = pd.DataFrame([
@@ -84,9 +84,9 @@ def test_recommend_ranks_gap_filling_candidate_first():
 
 
 def test_recommend_ignores_covered_skills_in_ranking():
-    # Team weak in 'design' only. Candidate A strong in design but weak in
-    # covered skills; Candidate B weak in design but strong elsewhere.
-    # A must rank above B because covered skills have weight zero.
+    # Team nur in 'design' schwach. Kandidat A stark in design, aber schwach in
+    # abgedeckten Skills; Kandidat B schwach in design, dafür stark in den übrigen.
+    # A muss vor B ranken, weil abgedeckte Skills das Gewicht null tragen.
     all_max = {s: 5 for s in SKILL_COLUMNS}
     all_max["design"] = 1
     members = pd.DataFrame([
@@ -120,8 +120,8 @@ def test_recommend_returns_fewer_than_k_when_few_candidates():
 
 
 def test_recommend_gap_score_is_dot_product_with_gap():
-    # Team weak only in 'construction' (gap=4). Candidate has construction=5.
-    # gap_score = candidate_skills . gap = 5 * 4 = 20 (other terms zero).
+    # Team nur in 'construction' schwach (Lücke=4). Kandidat hat construction=5.
+    # gap_score = candidate_skills . gap = 5 * 4 = 20 (übrige Summanden sind null).
     all_max = {s: 5 for s in SKILL_COLUMNS}
     all_max["construction"] = 1
     members = pd.DataFrame([
@@ -135,9 +135,9 @@ def test_recommend_gap_score_is_dot_product_with_gap():
 
 
 def test_recommend_prefers_stronger_candidate_when_gap_is_smaller_than_max():
-    # Team weak in construction with max=2 -> gap=3. Stronger candidate (5)
-    # must rank above moderate (4). Regression against the previous target=gap
-    # formulation, where skill=4 (distance 0) wrongly beat skill=5 (distance 2).
+    # Team in construction schwach mit max=2 -> Lücke=3. Stärkerer Kandidat (5)
+    # muss vor moderatem (4) ranken. Regression gegen die frühere target=gap-
+    # Formulierung, bei der skill=4 (Distanz 0) fälschlich vor skill=5 (Distanz 2) lag.
     all_max = {s: 5 for s in SKILL_COLUMNS}
     all_max["construction"] = 2
     members = pd.DataFrame([_make_member(**all_max)])

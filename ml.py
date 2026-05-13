@@ -1,4 +1,4 @@
-# Gap-weighted kNN recommender: for each team, suggest participants whose skills fill the team's skill gaps
+# Lückengewichteter kNN-Empfehler: schlägt für jedes Team Teilnehmer vor, deren Fähigkeiten die Skill-Lücken des Teams füllen
 
 import numpy as np
 import pandas as pd
@@ -19,19 +19,36 @@ SKILL_COLUMNS = [
     "problem_solving",
 ]
 
+# Deutsche Anzeigebezeichnungen für die Skill-Spalten (UI-Labels)
+SKILL_LABELS_DE = {
+    "strength": "Stärke",
+    "driving": "Fahren",
+    "design": "Design",
+    "social": "Soziale Kompetenz",
+    "construction": "Bau",
+    "english": "Englisch",
+    "german": "Deutsch",
+    "photography": "Fotografie",
+    "leadership": "Führung",
+    "communication": "Kommunikation",
+    "experience": "Erfahrung",
+    "problem_solving": "Problemlösung",
+}
+
 
 def skill_label(skill: str) -> str:
-    # Human-readable label, e.g. "problem_solving" -> "Problem Solving"
-    return skill.replace("_", " ").title()
+    # Liefert das deutsche Anzeige-Label; fällt auf Title-Case zurück, falls kein Eintrag existiert
+    return SKILL_LABELS_DE.get(skill, skill.replace("_", " ").title())
 
 
 def _backfill_missing_skills(df: pd.DataFrame, default: int) -> pd.DataFrame:
-    # If a skill column declared in SKILL_COLUMNS is missing from the DataFrame
-    # (e.g. its DB migration hasn't been applied yet), inject it with `default`
-    # so downstream operations don't KeyError. Use default=5 for team data
-    # (treats the skill as fully covered, gap=0) and default=3 for candidates
-    # (neutral midpoint). With gap=0 the weight is zero, so the value of the
-    # candidate's filled column doesn't affect ranking anyway.
+    # Falls eine in SKILL_COLUMNS deklarierte Skill-Spalte im DataFrame fehlt
+    # (z.B. weil die DB-Migration noch nicht ausgeführt wurde), wird sie mit
+    # `default` eingefügt, damit nachgelagerte Operationen keinen KeyError
+    # werfen. default=5 für Teamdaten (gilt als vollständig abgedeckt, gap=0)
+    # und default=3 für Kandidaten (neutraler Mittelwert). Bei gap=0 ist das
+    # Gewicht null, der konkrete Kandidatenwert beeinflusst das Ranking also
+    # ohnehin nicht.
     missing = [c for c in SKILL_COLUMNS if c not in df.columns]
     if not missing:
         return df
@@ -42,9 +59,9 @@ def _backfill_missing_skills(df: pd.DataFrame, default: int) -> pd.DataFrame:
 
 
 def team_gap_vector(team_participants: pd.DataFrame) -> np.ndarray:
-    # Returns a len(SKILL_COLUMNS)-dim vector of max(5 - team_max_skill, 0);
-    # empty team -> all 5s. Skills missing from the DataFrame are treated as
-    # already covered (gap=0) so they don't drive recommendations.
+    # Liefert einen Vektor der Dimension len(SKILL_COLUMNS) mit max(5 - team_max_skill, 0);
+    # leeres Team -> nur 5er. Fehlende Skill-Spalten gelten als bereits abgedeckt
+    # (gap=0) und beeinflussen somit keine Empfehlung.
     if team_participants.empty:
         return np.full(len(SKILL_COLUMNS), 5.0)
     df = _backfill_missing_skills(team_participants, default=5)
@@ -57,7 +74,7 @@ def recommend_complementary(
     candidates_df: pd.DataFrame,
     k: int = 5,
 ) -> pd.DataFrame:
-    # Rank candidates by gap-weighted Euclidean kNN; covered skills contribute zero to distance
+    # Bewertet Kandidaten per lückengewichtetem euklidischem kNN; abgedeckte Skills tragen 0 zur Distanz bei
     out_cols = ["id", "name", "distance", "gap_score", *SKILL_COLUMNS]
     if candidates_df.empty:
         return pd.DataFrame(columns=out_cols)
@@ -68,9 +85,10 @@ def recommend_complementary(
 
     candidates_df = _backfill_missing_skills(candidates_df, default=3)
     skill_matrix = candidates_df[list(SKILL_COLUMNS)].to_numpy(dtype=float)
-    target = np.where(g > 0, 5.0, 0.0)  # ideal complement: skill 5 in every gap dim, 0 elsewhere
+    target = np.where(g > 0, 5.0, 0.0)  # ideale Ergänzung: Skill 5 in jeder Lücken-Dimension, sonst 0
 
-    # Pre-scale by sqrt(g): plain Euclidean on scaled vectors equals weighted Euclidean with weights g
+    # Vorab-Skalierung mit sqrt(g): einfache euklidische Distanz auf skalierten Vektoren
+    # entspricht gewichteter euklidischer Distanz mit Gewichten g
     weights = np.sqrt(g)
     scaled_matrix = skill_matrix * weights
     scaled_target = target * weights

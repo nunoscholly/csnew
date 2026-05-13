@@ -1,4 +1,4 @@
-# Supabase authentication helpers: login, signup, logout, and session management via st.session_state
+# Supabase-Authentifizierungshelfer: Login, Registrierung, Logout und Session-Verwaltung via st.session_state
 
 import os
 
@@ -8,8 +8,8 @@ from supabase import create_client, Client
 
 
 def init_supabase() -> Client:
-    # Initialize Supabase client from .env or st.secrets (Streamlit Cloud)
-    # Try .env first, then let st.secrets override (Streamlit Cloud).
+    # Supabase-Client aus .env oder st.secrets (Streamlit Cloud) initialisieren.
+    # Zuerst .env versuchen, anschließend kann st.secrets überschreiben (Streamlit Cloud).
     load_dotenv()
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_KEY")
@@ -21,30 +21,30 @@ def init_supabase() -> Client:
 
     if not url or not key:
         raise ValueError(
-            "Missing SUPABASE_URL or SUPABASE_KEY. "
-            "Copy .env.example to .env and add your project credentials."
+            "SUPABASE_URL oder SUPABASE_KEY fehlt. "
+            "Kopieren Sie .env.example nach .env und tragen Sie Ihre Projekt-Zugangsdaten ein."
         )
 
     return create_client(url, key)
 
 
 def login(supabase: Client, email: str, password: str):
-    # Authenticate user and cache session in st.session_state for page reloads
+    # Nutzer authentifizieren und Session in st.session_state cachen, damit sie Seiten-Reloads übersteht
     response = supabase.auth.sign_in_with_password(
         {"email": email, "password": password}
     )
 
-    # Cache session so other pages see the authenticated user
+    # Session cachen, damit andere Seiten den angemeldeten Nutzer sehen
     st.session_state["session"] = response.session
     st.session_state["user"] = response.user
     return response
 
 
 def sign_up(supabase: Client, email: str, password: str):
-    # Register user; cache session if email confirmation is disabled
+    # Nutzer registrieren; Session cachen, falls E-Mail-Bestätigung deaktiviert ist
     response = supabase.auth.sign_up({"email": email, "password": password})
 
-    # Auto-login if email confirmation is disabled
+    # Automatische Anmeldung, wenn E-Mail-Bestätigung deaktiviert ist
     if response.session is not None:
         st.session_state["session"] = response.session
         st.session_state["user"] = response.user
@@ -52,15 +52,15 @@ def sign_up(supabase: Client, email: str, password: str):
 
 
 def logout(supabase: Client) -> None:
-    # Invalidate session on server and clear local cache
+    # Session serverseitig invalidieren und lokalen Cache leeren
     supabase.auth.sign_out()
 
-    # Clear session so UI shows login screen again
+    # Session leeren, damit die Oberfläche wieder den Login-Bildschirm anzeigt
     for key in ("session", "user"):
         if key in st.session_state:
             del st.session_state[key]
 
 
 def get_session():
-    # Return current session from cache, or None if logged out
+    # Liefert die aktuelle Session aus dem Cache oder None, wenn nicht angemeldet
     return st.session_state.get("session")

@@ -1,4 +1,4 @@
-# Database CRUD layer: all Supabase queries for events, teams, participants using parameterized queries to prevent SQL injection
+# Datenbank-CRUD-Schicht: alle Supabase-Abfragen für Veranstaltungen, Teams und Teilnehmer; nutzt parametrisierte Abfragen, um SQL-Injection zu verhindern
 
 from typing import Optional
 
@@ -9,11 +9,11 @@ from ml import SKILL_COLUMNS
 
 
 # ---------------------------------------------------------------------------
-# Events
+# Veranstaltungen
 # ---------------------------------------------------------------------------
 
 def get_events(supabase: Client) -> pd.DataFrame:
-    # Fetch all events from database
+    # Alle Veranstaltungen aus der Datenbank laden
     response = supabase.table("events").select("*").order("date").execute()
     return pd.DataFrame(response.data)
 
@@ -24,14 +24,14 @@ def create_event(
     date: str,
     location: str,
 ) -> dict:
-    # Insert new event
+    # Neue Veranstaltung einfügen
     payload = {"name": name, "date": date, "location": location}
     response = supabase.table("events").insert(payload).execute()
     return response.data[0]
 
 
 def delete_event(supabase: Client, event_id: str) -> None:
-    # Delete event (teams and participants cascade via FK constraints)
+    # Veranstaltung löschen (Teams und Teilnehmer werden per FK-Constraint kaskadiert entfernt)
     supabase.table("events").delete().eq("id", event_id).execute()
 
 
@@ -40,7 +40,7 @@ def delete_event(supabase: Client, event_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 def get_teams(supabase: Client, event_id: str) -> pd.DataFrame:
-    # Fetch all teams for given event
+    # Alle Teams der angegebenen Veranstaltung laden
     response = (
         supabase.table("teams")
         .select("*")
@@ -57,7 +57,7 @@ def create_team(
     name: str,
     thresholds: Optional[dict] = None,
 ) -> dict:
-    # Insert new team with optional skill thresholds
+    # Neues Team mit optionalen Skill-Schwellen einfügen
     payload = {"event_id": event_id, "name": name}
     if thresholds:
         payload.update(thresholds)
@@ -66,16 +66,16 @@ def create_team(
 
 
 def delete_team(supabase: Client, team_id: str) -> None:
-    # Delete team (participants cascade via FK)
+    # Team löschen (Teilnehmer werden per FK-Constraint kaskadiert entfernt)
     supabase.table("teams").delete().eq("id", team_id).execute()
 
 
 # ---------------------------------------------------------------------------
-# Participants
+# Teilnehmer
 # ---------------------------------------------------------------------------
 
 def get_participants(supabase: Client, team_id: str) -> pd.DataFrame:
-    # Fetch all participants for given team
+    # Alle Teilnehmer des angegebenen Teams laden
     response = (
         supabase.table("participants")
         .select("*")
@@ -87,7 +87,7 @@ def get_participants(supabase: Client, team_id: str) -> pd.DataFrame:
 
 
 def get_event_participants(supabase: Client, event_id: str) -> pd.DataFrame:
-    # Fetch event participants with team names; handle missing event_id column gracefully
+    # Teilnehmer der Veranstaltung inklusive Teamnamen laden; eine fehlende event_id-Spalte wird tolerant behandelt
     try:
         response = (
             supabase.table("participants")
@@ -133,7 +133,7 @@ def add_participant(
     status: str = "pending",
     team_id: Optional[str] = None,
 ) -> dict:
-    # Insert participant with skill ratings; only include valid SKILL_COLUMNS
+    # Teilnehmer mit Skill-Bewertungen einfügen; es werden nur Schlüssel aus SKILL_COLUMNS übernommen
     payload = {
         "event_id": event_id,
         "team_id": team_id,
@@ -151,21 +151,21 @@ def assign_participant_to_team(
     participant_id: str,
     team_id: str,
 ) -> None:
-    # Assign participant to team
+    # Teilnehmer einem Team zuweisen
     supabase.table("participants").update({"team_id": team_id}).eq(
         "id", participant_id
     ).execute()
 
 
 def unassign_participant(supabase: Client, participant_id: str) -> None:
-    # Remove participant from team assignment
+    # Teamzuweisung eines Teilnehmers aufheben
     supabase.table("participants").update({"team_id": None}).eq(
         "id", participant_id
     ).execute()
 
 
 def delete_participant(supabase: Client, participant_id: str) -> None:
-    # Delete participant
+    # Teilnehmer löschen
     supabase.table("participants").delete().eq("id", participant_id).execute()
 
 
@@ -173,9 +173,9 @@ def get_all_participants_for_event(
     supabase: Client,
     event_id: str,
 ) -> pd.DataFrame:
-    # Fetch every participant in this event — assigned to a team OR still in the
-    # unassigned pool (team_id IS NULL). We filter on participants.event_id directly
-    # rather than via team_id, otherwise unassigned participants would be excluded.
+    # Alle Teilnehmer dieser Veranstaltung laden – sowohl Team-zugewiesene als auch
+    # die noch im Pool (team_id IS NULL). Wir filtern direkt über participants.event_id
+    # statt über team_id, sonst würden nicht zugewiesene Teilnehmer ausgeschlossen.
     response = (
         supabase.table("participants")
         .select("*")
@@ -186,7 +186,7 @@ def get_all_participants_for_event(
     if participants.empty:
         return participants
 
-    # Attach a readable team_name column (NaN for unassigned).
+    # Eine lesbare team_name-Spalte anhängen (NaN für nicht zugewiesene Teilnehmer).
     teams = get_teams(supabase, event_id)
     if teams.empty:
         participants["team_name"] = None

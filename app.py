@@ -1,4 +1,4 @@
-# Main Streamlit app: UI layer that routes between pages and delegates to auth, database, and ML modules.
+# Haupt-Streamlit-App: UI-Schicht, die zwischen den Seiten routet und an die Module auth, database und ml delegiert.
 
 from datetime import date as date_cls
 
@@ -13,19 +13,19 @@ import ml
 
 
 # ---------------------------------------------------------------------------
-# Page setup
+# Seiten-Setup
 # ---------------------------------------------------------------------------
-# Configure the Streamlit page once at the top so the title/favicon are
-# consistent across reruns.
-st.set_page_config(page_title="Event Team Manager", layout="wide")
+# Streamlit-Seite einmalig oben konfigurieren, damit Titel/Favicon bei
+# jedem Rerun konsistent bleiben.
+st.set_page_config(page_title="Event-Team-Manager", layout="wide")
 
 
 # ---------------------------------------------------------------------------
-# Supabase client bootstrap
+# Supabase-Client-Initialisierung
 # ---------------------------------------------------------------------------
-# We keep a single Supabase client in session_state so we don't create a
-# new one on every Streamlit rerun. If credentials are missing we show a
-# friendly error and stop the app.
+# Wir halten einen einzigen Supabase-Client in session_state, damit nicht
+# bei jedem Streamlit-Rerun ein neuer erstellt wird. Fehlen die Zugangsdaten,
+# zeigen wir eine freundliche Fehlermeldung und stoppen die App.
 if "supabase" not in st.session_state:
     try:
         st.session_state["supabase"] = auth.init_supabase()
@@ -36,134 +36,145 @@ if "supabase" not in st.session_state:
 supabase = st.session_state["supabase"]
 
 
+# Deutsche Anzeigebezeichnungen für interne Status- und Skill-Werte
+STATUS_LABELS_DE = {"pending": "Ausstehend", "confirmed": "Bestätigt"}
+LEGACY_SKILL_LABELS_DE = {
+    "design": "Design",
+    "engineering": "Technik",
+    "business": "Wirtschaft",
+    "other": "Sonstige",
+}
+UNASSIGNED_LABEL = "Nicht zugewiesen"
+
+
 # ---------------------------------------------------------------------------
-# Login screen
+# Login-Bildschirm
 # ---------------------------------------------------------------------------
 def render_login() -> None:
-    # Render login/signup interface for unauthenticated users
-    st.title("Event Team Manager")
+    # Login-/Registrierungs-Oberfläche für nicht angemeldete Nutzer rendern
+    st.title("Event-Team-Manager")
 
-    login_tab, signup_tab = st.tabs(["Log in", "Sign up"])
+    login_tab, signup_tab = st.tabs(["Anmelden", "Registrieren"])
 
-    # --- Log in tab -----------------------------------------------------
+    # --- Tab "Anmelden" -------------------------------------------------
     with login_tab:
         with st.form("login_form"):
-            email = st.text_input("Email", key="login_email")
-            password = st.text_input("Password", type="password", key="login_password")
-            submitted = st.form_submit_button("Log in")
+            email = st.text_input("E-Mail", key="login_email")
+            password = st.text_input("Passwort", type="password", key="login_password")
+            submitted = st.form_submit_button("Anmelden")
 
         if submitted:
             try:
                 auth.login(supabase, email, password)
-                st.success("Logged in successfully.")
+                st.success("Erfolgreich angemeldet.")
                 st.rerun()
             except Exception as e:
-                # Supabase raises various exception types (wrong password,
-                # network error, unconfirmed email, etc.). One message covers all.
-                st.error(f"Login failed: {e}")
+                # Supabase wirft unterschiedliche Exception-Typen (falsches Passwort,
+                # Netzwerkfehler, nicht bestätigte E-Mail usw.) — eine Meldung deckt alles ab.
+                st.error(f"Anmeldung fehlgeschlagen: {e}")
 
-    # --- Sign up tab ----------------------------------------------------
+    # --- Tab "Registrieren" ---------------------------------------------
     with signup_tab:
         with st.form("signup_form"):
-            email = st.text_input("Email", key="signup_email")
+            email = st.text_input("E-Mail", key="signup_email")
             password = st.text_input(
-                "Password (min. 6 characters)",
+                "Passwort (mind. 6 Zeichen)",
                 type="password",
                 key="signup_password",
             )
-            submitted = st.form_submit_button("Create account")
+            submitted = st.form_submit_button("Konto erstellen")
 
         if submitted:
             try:
                 response = auth.sign_up(supabase, email, password)
                 if response.session is not None:
-                    # Email confirmation is disabled — user is logged in.
-                    st.success("Account created and logged in.")
+                    # E-Mail-Bestätigung ist deaktiviert — Nutzer ist direkt angemeldet.
+                    st.success("Konto erstellt und angemeldet.")
                     st.rerun()
                 else:
-                    # Confirmation required — user must click the email link.
+                    # Bestätigung erforderlich — Nutzer muss den Link in der E-Mail anklicken.
                     st.success(
-                        "Account created. Check your inbox for a confirmation "
-                        "link, then come back and log in."
+                        "Konto erstellt. Bitte prüfen Sie Ihr Postfach auf eine "
+                        "Bestätigungs-E-Mail und melden Sie sich anschließend an."
                     )
             except Exception as e:
-                st.error(f"Sign up failed: {e}")
+                st.error(f"Registrierung fehlgeschlagen: {e}")
 
 
 # ---------------------------------------------------------------------------
-# Page: Events
+# Seite: Veranstaltungen
 # ---------------------------------------------------------------------------
 def page_events() -> None:
-    # List events and allow creation/deletion
-    st.header("Events")
+    # Veranstaltungen auflisten und Anlegen/Löschen ermöglichen
+    st.header("Veranstaltungen")
 
     events = db.get_events(supabase)
     if events.empty:
-        st.info("No events yet. Create your first event below.")
+        st.info("Noch keine Veranstaltungen. Erstellen Sie unten Ihre erste Veranstaltung.")
     else:
         st.dataframe(events, use_container_width=True)
 
     st.divider()
-    st.subheader("Create a new event")
+    st.subheader("Neue Veranstaltung erstellen")
     with st.form("new_event_form"):
         name = st.text_input("Name")
-        event_date = st.date_input("Date", value=date_cls.today())
-        location = st.text_input("Location")
-        submitted = st.form_submit_button("Create event")
+        event_date = st.date_input("Datum", value=date_cls.today())
+        location = st.text_input("Ort")
+        submitted = st.form_submit_button("Veranstaltung erstellen")
 
     if submitted:
         if not name:
-            st.warning("Event name is required.")
+            st.warning("Veranstaltungsname ist erforderlich.")
         else:
             db.create_event(supabase, name, event_date.isoformat(), location)
-            st.success(f"Event '{name}' created.")
+            st.success(f"Veranstaltung '{name}' erstellt.")
             st.rerun()
 
     if not events.empty:
         st.divider()
-        st.subheader("Delete an event")
-        st.caption("Deleting an event also removes all its teams and participants.")
+        st.subheader("Veranstaltung löschen")
+        st.caption("Beim Löschen einer Veranstaltung werden auch alle zugehörigen Teams und Teilnehmer entfernt.")
         delete_options = {row["name"]: row["id"] for _, row in events.iterrows()}
         to_delete = st.selectbox(
-            "Select event to delete", list(delete_options.keys()), key="delete_event_select"
+            "Zu löschende Veranstaltung auswählen", list(delete_options.keys()), key="delete_event_select"
         )
-        if st.button("Delete event", key="delete_event_btn"):
+        if st.button("Veranstaltung löschen", key="delete_event_btn"):
             db.delete_event(supabase, delete_options[to_delete])
-            st.success(f"Event '{to_delete}' deleted.")
+            st.success(f"Veranstaltung '{to_delete}' gelöscht.")
             st.rerun()
 
 
 # ---------------------------------------------------------------------------
-# Page: Teams
+# Seite: Teams
 # ---------------------------------------------------------------------------
 def page_teams() -> None:
-    # Manage teams with skill thresholds and candidate recommendations
+    # Teams mit Skill-Schwellen und Kandidatenempfehlungen verwalten
     st.header("Teams")
 
     events = db.get_events(supabase)
     if events.empty:
-        st.warning("No events exist yet. Create one on the Events page first.")
+        st.warning("Es existieren noch keine Veranstaltungen. Erstellen Sie zuerst eine auf der Seite Veranstaltungen.")
         return
 
     event_options = {row["name"]: row["id"] for _, row in events.iterrows()}
-    event_label = st.selectbox("Select event", list(event_options.keys()))
+    event_label = st.selectbox("Veranstaltung auswählen", list(event_options.keys()))
     event_id = event_options[event_label]
 
     teams = db.get_teams(supabase, event_id)
     if teams.empty:
-        st.info("No teams yet for this event.")
+        st.info("Noch keine Teams für diese Veranstaltung.")
     else:
         threshold_cols = [f"req_{s}" for s in ml.SKILL_COLUMNS if f"req_{s}" in teams.columns]
         display_cols = ["name"] + threshold_cols if "name" in teams.columns else list(teams.columns)
         st.dataframe(teams[display_cols], use_container_width=True)
 
     st.divider()
-    st.subheader("Create a new team")
+    st.subheader("Neues Team erstellen")
     with st.form("new_team_form"):
-        team_name = st.text_input("Team name")
+        team_name = st.text_input("Teamname")
         st.markdown(
-            "**Minimum skill thresholds** (0 = don't care, candidates "
-            "with the skill below the threshold are filtered out)"
+            "**Minimale Skill-Schwellen** (0 = egal; Kandidaten, deren Skill "
+            "unterhalb der Schwelle liegt, werden herausgefiltert)"
         )
         thresholds_input = {}
         cols = st.columns(3)
@@ -172,22 +183,22 @@ def page_teams() -> None:
                 thresholds_input[f"req_{s}"] = st.slider(
                     ml.skill_label(s), 0, 5, 0, key=f"req_{s}_{event_id}"
                 )
-        submitted = st.form_submit_button("Create team")
+        submitted = st.form_submit_button("Team erstellen")
 
     if submitted:
         if not team_name:
-            st.warning("Team name is required.")
+            st.warning("Teamname ist erforderlich.")
         else:
             db.create_team(supabase, event_id, team_name, thresholds_input)
-            st.success(f"Team '{team_name}' created.")
+            st.success(f"Team '{team_name}' erstellt.")
             st.rerun()
 
     if not teams.empty:
         st.divider()
-        st.subheader("Recommend candidates")
+        st.subheader("Kandidaten empfehlen")
         team_options = {row["name"]: row["id"] for _, row in teams.iterrows()}
         team_label = st.selectbox(
-            "Pick a team",
+            "Team auswählen",
             list(team_options.keys()),
             key=f"recommend_team_select_{event_id}",
         )
@@ -195,58 +206,60 @@ def page_teams() -> None:
 
         all_in_event = db.get_event_participants(supabase, event_id)
         if all_in_event.empty:
-            st.info("No participants in this event yet.")
+            st.info("Noch keine Teilnehmer in dieser Veranstaltung.")
         else:
             unassigned = all_in_event[all_in_event["team_id"].isna()]
             if unassigned.empty:
-                st.info("No unassigned participants to recommend from.")
+                st.info("Keine nicht zugewiesenen Teilnehmer für Empfehlungen verfügbar.")
             else:
                 team_members = all_in_event[all_in_event["team_id"] == team_row["id"]]
                 recs = ml.recommend_complementary(team_members, unassigned, k=5)
                 if recs.empty:
-                    st.info("Team is fully covered — no skill gaps left to fill.")
+                    st.info("Team ist vollständig abgedeckt – keine Skill-Lücken mehr zu füllen.")
                 else:
                     show_cols = ["name", "distance", *ml.SKILL_COLUMNS]
+                    rename_map = {"name": "Name", "distance": "Distanz"}
+                    rename_map.update({s: ml.skill_label(s) for s in ml.SKILL_COLUMNS})
                     st.dataframe(
-                        recs[show_cols].assign(
-                            distance=recs["distance"].round(2)
-                        ),
+                        recs[show_cols]
+                        .assign(distance=recs["distance"].round(2))
+                        .rename(columns=rename_map),
                         use_container_width=True,
                     )
                     st.caption(
-                        "Lower distance = better complement to the team's current skill gaps. "
-                        "Use the Participants page to assign."
+                        "Geringere Distanz = bessere Ergänzung zu den aktuellen Skill-Lücken des Teams. "
+                        "Zuweisung über die Seite Teilnehmer."
                     )
 
         st.divider()
-        st.subheader("Delete a team")
-        st.caption("Deleting a team also removes all its participants.")
+        st.subheader("Team löschen")
+        st.caption("Beim Löschen eines Teams werden auch alle zugehörigen Teilnehmer entfernt.")
         team_delete_options = {row["name"]: row["id"] for _, row in teams.iterrows()}
         to_delete = st.selectbox(
-            "Select team to delete",
+            "Zu löschendes Team auswählen",
             list(team_delete_options.keys()),
             key=f"delete_team_select_{event_id}",
         )
-        if st.button("Delete team", key=f"delete_team_btn_{event_id}"):
+        if st.button("Team löschen", key=f"delete_team_btn_{event_id}"):
             db.delete_team(supabase, team_delete_options[to_delete])
-            st.success(f"Team '{to_delete}' deleted.")
+            st.success(f"Team '{to_delete}' gelöscht.")
             st.rerun()
 
 
 # ---------------------------------------------------------------------------
-# Page: Participants
+# Seite: Teilnehmer
 # ---------------------------------------------------------------------------
 def page_participants() -> None:
-    # Manage event participants: create, assign to teams, view skills
-    st.header("Participants")
+    # Veranstaltungsteilnehmer verwalten: anlegen, Teams zuweisen, Skills ansehen
+    st.header("Teilnehmer")
 
     events = db.get_events(supabase)
     if events.empty:
-        st.warning("No events exist yet. Create one on the Events page first.")
+        st.warning("Es existieren noch keine Veranstaltungen. Erstellen Sie zuerst eine auf der Seite Veranstaltungen.")
         return
 
     event_options = {row["name"]: row["id"] for _, row in events.iterrows()}
-    event_label = st.selectbox("Select event", list(event_options.keys()))
+    event_label = st.selectbox("Veranstaltung auswählen", list(event_options.keys()))
     event_id = event_options[event_label]
 
     teams = db.get_teams(supabase, event_id)
@@ -254,34 +267,36 @@ def page_participants() -> None:
 
     participants = db.get_event_participants(supabase, event_id)
     if participants.empty:
-        st.info("No participants in this event yet.")
+        st.info("Noch keine Teilnehmer in dieser Veranstaltung.")
     else:
-        # Filter UI: lets the user narrow the participants table by status
-        # and/or by legacy skill label. We use multiselect (not selectbox) so
-        # an empty selection means "no filter" — a friendlier default than
-        # forcing the user to pick "All" from a dropdown.
-        st.subheader("Filter participants")
+        # Filter-UI: erlaubt das Eingrenzen der Teilnehmertabelle nach Status
+        # und/oder nach Alt-Skill-Bezeichnung. Wir nutzen multiselect (statt
+        # selectbox), damit eine leere Auswahl "kein Filter" bedeutet – das
+        # ist nutzerfreundlicher, als "Alle" aus einem Dropdown wählen zu müssen.
+        st.subheader("Teilnehmer filtern")
         filter_col1, filter_col2 = st.columns(2)
         with filter_col1:
-            # Statuses are a small fixed set, so we hardcode them rather
-            # than computing unique() from the dataframe (avoids surprises
-            # when the column is empty).
+            # Status-Werte sind ein kleiner, fester Satz — daher hartkodiert,
+            # statt sie über unique() aus dem DataFrame zu ermitteln (vermeidet
+            # Überraschungen bei leerer Spalte).
             status_filter = st.multiselect(
-                "Filter by status",
+                "Nach Status filtern",
                 ["pending", "confirmed"],
                 default=[],
+                format_func=lambda v: STATUS_LABELS_DE.get(v, v),
                 key=f"status_filter_{event_id}",
             )
         with filter_col2:
             skill_filter = st.multiselect(
-                "Filter by skill (legacy label)",
+                "Nach Skill filtern (Alt-Bezeichnung)",
                 ["design", "engineering", "business", "other"],
                 default=[],
+                format_func=lambda v: LEGACY_SKILL_LABELS_DE.get(v, v),
                 key=f"skill_filter_{event_id}",
             )
 
-        # Apply filters cumulatively. Each empty list is a no-op so users
-        # can combine them freely (e.g. "confirmed" + "design").
+        # Filter werden kumulativ angewandt. Eine leere Liste ist ein No-Op,
+        # sodass Nutzer sie frei kombinieren können (z.B. "confirmed" + "design").
         filtered = participants.copy()
         if status_filter:
             filtered = filtered[filtered["status"].isin(status_filter)]
@@ -289,40 +304,53 @@ def page_participants() -> None:
             filtered = filtered[filtered["skill"].isin(skill_filter)]
 
         display_cols = [col for col in ["name", "team_name", "status", *ml.SKILL_COLUMNS] if col in filtered.columns]
-        st.caption(f"Showing {len(filtered)} of {len(participants)} participants")
+        st.caption(f"{len(filtered)} von {len(participants)} Teilnehmern angezeigt")
+        rename_map = {
+            "name": "Name",
+            "team_name": "Team",
+            "status": "Status",
+        }
+        rename_map.update({s: ml.skill_label(s) for s in ml.SKILL_COLUMNS})
         st.dataframe(
-            filtered[display_cols].fillna({"team_name": "Unassigned"}),
+            filtered[display_cols]
+            .fillna({"team_name": UNASSIGNED_LABEL})
+            .rename(columns=rename_map),
             use_container_width=True,
         )
 
     st.divider()
-    st.subheader("Add a participant")
+    st.subheader("Teilnehmer hinzufügen")
     with st.form("new_participant_form"):
         name = st.text_input("Name")
         skill = st.selectbox(
-            "Legacy skill label (used by balance classifier)",
+            "Alt-Skill-Bezeichnung (vom Balance-Classifier verwendet)",
             ["design", "engineering", "business", "other"],
+            format_func=lambda v: LEGACY_SKILL_LABELS_DE.get(v, v),
         )
-        status = st.selectbox("Status", ["pending", "confirmed"])
+        status = st.selectbox(
+            "Status",
+            ["pending", "confirmed"],
+            format_func=lambda v: STATUS_LABELS_DE.get(v, v),
+        )
         team_choice = st.selectbox(
-            "Assign to team",
-            ["Unassigned", *team_options.keys()],
+            "Team zuweisen",
+            [UNASSIGNED_LABEL, *team_options.keys()],
         )
-        st.markdown("**Skill ratings (1 = weak, 5 = strong)**")
+        st.markdown("**Skill-Bewertungen (1 = schwach, 5 = stark)**")
         skills_input = {}
         cols = st.columns(3)
         for i, s in enumerate(ml.SKILL_COLUMNS):
             with cols[i % 3]:
                 skills_input[s] = st.slider(ml.skill_label(s), 1, 5, 3, key=f"new_{s}")
-        submitted = st.form_submit_button("Add participant")
+        submitted = st.form_submit_button("Teilnehmer hinzufügen")
 
     if submitted:
         if not name:
-            st.warning("Participant name is required.")
+            st.warning("Teilnehmername ist erforderlich.")
         else:
             chosen_team_id = (
                 team_options[team_choice]
-                if team_choice != "Unassigned"
+                if team_choice != UNASSIGNED_LABEL
                 else None
             )
             db.add_participant(
@@ -334,23 +362,23 @@ def page_participants() -> None:
                 status=status,
                 team_id=chosen_team_id,
             )
-            st.success(f"Added {name} to event '{event_label}'.")
+            st.success(f"{name} zur Veranstaltung '{event_label}' hinzugefügt.")
             st.rerun()
 
     if not participants.empty:
-        # Build the {label: id} map once. pd.notna check is needed because
-        # `team_name` is pd.NA for unassigned rows, and `pd.NA or "..."`
-        # raises TypeError.
+        # Die {Label: id}-Map einmal aufbauen. Der pd.notna-Check ist nötig, weil
+        # `team_name` bei nicht zugewiesenen Zeilen pd.NA ist, und `pd.NA or "..."`
+        # einen TypeError wirft.
         participant_options = {}
         for _, row in participants.iterrows():
             team_name = row.get("team_name")
-            label_team = team_name if pd.notna(team_name) else "unassigned"
+            label_team = team_name if pd.notna(team_name) else "nicht zugewiesen"
             participant_options[f"{row['name']} ({label_team})"] = row["id"]
 
         st.divider()
-        st.subheader("Assign / unassign")
+        st.subheader("Zuweisen / Zuweisung aufheben")
         chosen = st.selectbox(
-            "Pick a participant",
+            "Teilnehmer auswählen",
             list(participant_options.keys()),
             key=f"assign_pick_{event_id}",
         )
@@ -360,77 +388,82 @@ def page_participants() -> None:
         with col_a:
             if team_options:
                 target_team_label = st.selectbox(
-                    "Assign to team",
+                    "Team zuweisen",
                     list(team_options.keys()),
                     key=f"assign_team_{event_id}",
                 )
-                if st.button("Assign", key=f"assign_btn_{event_id}"):
+                if st.button("Zuweisen", key=f"assign_btn_{event_id}"):
                     db.assign_participant_to_team(
                         supabase, chosen_id, team_options[target_team_label]
                     )
-                    st.success(f"Assigned to '{target_team_label}'.")
+                    st.success(f"Zugewiesen zu '{target_team_label}'.")
                     st.rerun()
             else:
-                st.caption("Create a team first to enable assignment.")
+                st.caption("Erstellen Sie zuerst ein Team, um die Zuweisung zu aktivieren.")
         with col_b:
-            if st.button("Unassign", key=f"unassign_btn_{event_id}"):
+            if st.button("Zuweisung aufheben", key=f"unassign_btn_{event_id}"):
                 db.unassign_participant(supabase, chosen_id)
-                st.success("Participant is now unassigned.")
+                st.success("Teilnehmer ist jetzt nicht mehr zugewiesen.")
                 st.rerun()
 
         st.divider()
-        st.subheader("Remove a participant")
+        st.subheader("Teilnehmer entfernen")
         to_delete = st.selectbox(
-            "Select participant to remove",
+            "Zu entfernenden Teilnehmer auswählen",
             list(participant_options.keys()),
             key=f"delete_participant_select_{event_id}",
         )
-        if st.button("Remove participant", key=f"delete_participant_btn_{event_id}"):
+        if st.button("Teilnehmer entfernen", key=f"delete_participant_btn_{event_id}"):
             db.delete_participant(supabase, participant_options[to_delete])
-            st.success(f"Removed {to_delete}.")
+            st.success(f"{to_delete} entfernt.")
             st.rerun()
 
 
 # ---------------------------------------------------------------------------
-# Page: Dashboard
+# Seite: Dashboard
 # ---------------------------------------------------------------------------
 def page_dashboard() -> None:
-    # Visualize team sizes, skill distribution, and status breakdown
+    # Teamgrößen, Skill-Verteilung und Status-Übersicht visualisieren
     st.header("Dashboard")
 
     events = db.get_events(supabase)
     if events.empty:
-        st.warning("No events exist yet.")
+        st.warning("Es existieren noch keine Veranstaltungen.")
         return
 
     event_options = {row["name"]: row["id"] for _, row in events.iterrows()}
-    event_label = st.selectbox("Select event", list(event_options.keys()))
+    event_label = st.selectbox("Veranstaltung auswählen", list(event_options.keys()))
     event_id = event_options[event_label]
 
     participants = db.get_all_participants_for_event(supabase, event_id)
     if participants.empty:
-        st.info("No participants yet for this event.")
+        st.info("Noch keine Teilnehmer für diese Veranstaltung.")
         return
 
-    # --- Team sizes ------------------------------------------------------
-    st.subheader("Team sizes")
-    team_sizes = participants.groupby("team_name").size().rename("members")
+    # --- Teamgrößen -----------------------------------------------------
+    st.subheader("Teamgrößen")
+    team_sizes = participants.groupby("team_name").size().rename("Mitglieder")
     st.bar_chart(team_sizes)
 
-    # --- Skill distribution ---------------------------------------------
-    st.subheader("Skill distribution")
-    skill_counts = participants["skill"].fillna("unknown").value_counts()
+    # --- Skill-Verteilung -----------------------------------------------
+    st.subheader("Skill-Verteilung")
+    skill_counts = (
+        participants["skill"]
+        .map(lambda v: LEGACY_SKILL_LABELS_DE.get(v, v) if pd.notna(v) else "Unbekannt")
+        .fillna("Unbekannt")
+        .value_counts()
+    )
     fig, ax = plt.subplots()
     ax.pie(skill_counts.values, labels=skill_counts.index, autopct="%1.0f%%")
     ax.set_aspect("equal")
     st.pyplot(fig)
 
-    # --- Skill gap radar (Netzdiagramm) ---------------------------------
-    st.subheader("Skill gap — requirements vs. team average")
+    # --- Skill-Lücken-Netzdiagramm --------------------------------------
+    st.subheader("Skill-Lücke – Anforderungen vs. Team-Durchschnitt")
     teams_df = db.get_teams(supabase, event_id)
     team_choices = participants["team_name"].dropna().unique().tolist()
     if not team_choices:
-        st.info("No teams with members yet.")
+        st.info("Noch keine Teams mit Mitgliedern.")
         return
 
     team_name = st.selectbox("Team", team_choices, key="radar_team")
@@ -438,8 +471,8 @@ def page_dashboard() -> None:
     team_row = teams_df[teams_df["id"] == team_id].iloc[0]
     team_members = participants[participants["team_id"] == team_id]
 
-    # Defensive against un-applied DB migrations: skills/req columns missing
-    # from the data become neutral (avg=3, req=0) so the radar still renders.
+    # Defensive gegen noch nicht ausgeführte DB-Migrationen: fehlende Skill-/Req-Spalten
+    # werden neutral behandelt (Durchschnitt=3, Anforderung=0), damit das Netzdiagramm trotzdem rendert.
     avg = np.array(
         [float(team_members[s].mean()) if s in team_members.columns else 3.0
          for s in ml.SKILL_COLUMNS],
@@ -456,9 +489,9 @@ def page_dashboard() -> None:
     req_loop = np.concatenate([req, req[:1]])
 
     fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
-    ax.plot(angles_loop, req_loop, color="tab:red", label="Requirement")
+    ax.plot(angles_loop, req_loop, color="tab:red", label="Anforderung")
     ax.fill(angles_loop, req_loop, color="tab:red", alpha=0.1)
-    ax.plot(angles_loop, avg_loop, color="tab:blue", label="Team average")
+    ax.plot(angles_loop, avg_loop, color="tab:blue", label="Team-Durchschnitt")
     ax.fill(angles_loop, avg_loop, color="tab:blue", alpha=0.2)
     ax.set_xticks(angles)
     ax.set_xticklabels([ml.skill_label(s) for s in ml.SKILL_COLUMNS])
@@ -468,39 +501,39 @@ def page_dashboard() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Page: ML Insights
+# Seite: ML-Insights
 # ---------------------------------------------------------------------------
 def page_ml_insights() -> None:
-    st.header("ML Insights — Complementary-Fit Recommender (kNN)")
+    st.header("ML-Insights – Komplementär-Fit-Empfehler (kNN)")
     st.caption(
-        "For each team in the selected event, we identify the skills the team is weakest in "
-        "(the gap) and use scikit-learn's k-Nearest-Neighbors to suggest unassigned participants "
-        "whose strengths best fill that gap."
+        "Für jedes Team der ausgewählten Veranstaltung ermitteln wir die Skills, in denen das Team am schwächsten ist "
+        "(die Lücke), und nutzen scikit-learns k-Nearest-Neighbors, um nicht zugewiesene Teilnehmer vorzuschlagen, "
+        "deren Stärken diese Lücke am besten füllen."
     )
 
     events = db.get_events(supabase)
     if events.empty:
-        st.warning("No events exist yet.")
+        st.warning("Es existieren noch keine Veranstaltungen.")
         return
 
     event_options = {row["name"]: row["id"] for _, row in events.iterrows()}
-    event_label = st.selectbox("Select event", list(event_options.keys()))
+    event_label = st.selectbox("Veranstaltung auswählen", list(event_options.keys()))
     event_id = event_options[event_label]
 
     teams = db.get_teams(supabase, event_id)
     if teams.empty:
-        st.info("No teams in this event yet.")
+        st.info("Noch keine Teams in dieser Veranstaltung.")
         return
 
     participants = db.get_all_participants_for_event(supabase, event_id)
     if participants.empty:
-        st.info("No participants in this event yet — add some on the Participants page.")
+        st.info("Noch keine Teilnehmer in dieser Veranstaltung – fügen Sie welche auf der Seite Teilnehmer hinzu.")
         return
 
     unassigned = participants[participants["team_id"].isna()]
     show_recs = not unassigned.empty
     if not show_recs:
-        st.info("All participants in this event are already assigned to teams. Showing gap analysis only.")
+        st.info("Alle Teilnehmer dieser Veranstaltung sind bereits Teams zugewiesen. Es wird nur die Lückenanalyse angezeigt.")
 
     for _, team_row in teams.iterrows():
         team_id = team_row["id"]
@@ -510,86 +543,94 @@ def page_ml_insights() -> None:
         st.subheader(team_name)
 
         if team_members.empty:
-            st.info("No members assigned to this team yet — recommendations skipped.")
+            st.info("Noch keine Mitglieder diesem Team zugewiesen – Empfehlungen werden übersprungen.")
             continue
 
         gap = ml.team_gap_vector(team_members)
         if gap.sum() == 0:
-            st.success("Team is fully covered — no skill gaps.")
+            st.success("Team ist vollständig abgedeckt – keine Skill-Lücken.")
             continue
 
-        # Top-3 weakest skills (largest gap values)
+        # Top-3 schwächste Skills (größte Lückenwerte)
         gap_pairs = sorted(
             zip(ml.SKILL_COLUMNS, gap), key=lambda kv: kv[1], reverse=True
         )
-        top_gaps = [f"{ml.skill_label(name)} (gap={int(g)})" for name, g in gap_pairs[:3] if g > 0]
-        st.markdown("**Weakest skills:** " + ", ".join(top_gaps))
+        top_gaps = [f"{ml.skill_label(name)} (Lücke={int(g)})" for name, g in gap_pairs[:3] if g > 0]
+        st.markdown("**Schwächste Skills:** " + ", ".join(top_gaps))
 
         if not show_recs:
             continue
 
         recs = ml.recommend_complementary(team_members, unassigned, k=5)
         if recs.empty:
-            st.info("No suitable unassigned candidates.")
+            st.info("Keine geeigneten nicht zugewiesenen Kandidaten.")
             continue
 
         show_cols = ["name", "distance", "gap_score", *ml.SKILL_COLUMNS]
+        rename_map = {
+            "name": "Name",
+            "distance": "Distanz",
+            "gap_score": "Lücken-Score",
+        }
+        rename_map.update({s: ml.skill_label(s) for s in ml.SKILL_COLUMNS})
         st.dataframe(
-            recs[show_cols].assign(
+            recs[show_cols]
+            .assign(
                 distance=recs["distance"].round(2),
                 gap_score=recs["gap_score"].round(2),
-            ),
+            )
+            .rename(columns=rename_map),
             use_container_width=True,
         )
 
     st.divider()
     st.caption(
-        f"Method: gap-weighted Euclidean kNN over {len(ml.SKILL_COLUMNS)}-dimensional skill vectors. "
-        "Lower distance = better complement; gap_score is the dot product of "
-        "the candidate's skills with the team's gap vector (higher = covers more gap)."
+        f"Methode: lückengewichteter euklidischer kNN über {len(ml.SKILL_COLUMNS)}-dimensionale Skill-Vektoren. "
+        "Geringere Distanz = bessere Ergänzung; der Lücken-Score ist das Skalarprodukt der Skills des "
+        "Kandidaten mit dem Lücken-Vektor des Teams (höher = deckt mehr Lücke ab)."
     )
 
 
 # ---------------------------------------------------------------------------
-# Sidebar + routing
+# Seitenleiste + Routing
 # ---------------------------------------------------------------------------
 def render_app() -> None:
-    # Route between pages based on sidebar selection
+    # Routing zwischen den Seiten anhand der Auswahl in der Seitenleiste
     user = st.session_state.get("user")
     user_email = getattr(user, "email", "user") if user else "user"
 
-    st.sidebar.title("Event Team Manager")
-    st.sidebar.caption(f"Logged in as: {user_email}")
+    st.sidebar.title("Event-Team-Manager")
+    st.sidebar.caption(f"Angemeldet als: {user_email}")
 
     page = st.sidebar.radio(
-        "Navigate",
+        "Navigation",
         [
-            "Events",
+            "Veranstaltungen",
             "Teams",
-            "Participants",
+            "Teilnehmer",
             "Dashboard",
-            "ML Insights",
+            "ML-Insights",
         ],
     )
 
     st.sidebar.divider()
-    if st.sidebar.button("Logout"):
+    if st.sidebar.button("Abmelden"):
         auth.logout(supabase)
         st.rerun()
 
-    # Dispatch — keep this map flat and easy to extend.
+    # Dispatch — flache, leicht erweiterbare Zuordnung
     pages = {
-        "Events": page_events,
+        "Veranstaltungen": page_events,
         "Teams": page_teams,
-        "Participants": page_participants,
+        "Teilnehmer": page_participants,
         "Dashboard": page_dashboard,
-        "ML Insights": page_ml_insights,
+        "ML-Insights": page_ml_insights,
     }
     pages[page]()
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Einstiegspunkt
 # ---------------------------------------------------------------------------
 if auth.get_session() is None:
     render_login()

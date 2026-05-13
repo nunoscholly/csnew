@@ -1,7 +1,7 @@
-# One-off seed runner: parses a participants seed SQL file and inserts rows
-# via supabase-py using the service role key (bypasses RLS).
+# Einmal-Seed-Runner: parst eine Teilnehmer-Seed-SQL-Datei und fügt die Zeilen
+# über supabase-py mit dem Service-Role-Key ein (umgeht RLS).
 #
-# Usage:
+# Verwendung:
 #   SUPABASE_SERVICE_ROLE_KEY=... python scripts/apply_seed.py supabase/seed_50_more_extreme_participants.sql
 
 import os
@@ -16,7 +16,7 @@ EVENT_NAME = "START Summit"
 
 key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 if not key:
-    raise SystemExit("SUPABASE_SERVICE_ROLE_KEY env var is required.")
+    raise SystemExit("Umgebungsvariable SUPABASE_SERVICE_ROLE_KEY ist erforderlich.")
 
 sql_path = Path(sys.argv[1])
 text = sql_path.read_text()
@@ -25,7 +25,7 @@ client = create_client(URL, key)
 
 events = client.table("events").select("id,name").eq("name", EVENT_NAME).execute()
 if not events.data:
-    raise SystemExit(f"Event {EVENT_NAME!r} not found.")
+    raise SystemExit(f"Veranstaltung {EVENT_NAME!r} nicht gefunden.")
 event_id = events.data[0]["id"]
 
 pattern = re.compile(r"\('([^']+)',\s*([\d,\s]+)\)")
@@ -51,6 +51,6 @@ for m in pattern.finditer(text):
         "leadership":   nums[8],
     })
 
-print(f"Parsed {len(rows)} participant rows from {sql_path.name}")
+print(f"{len(rows)} Teilnehmerzeilen aus {sql_path.name} geparst")
 res = client.table("participants").insert(rows).execute()
-print(f"Inserted {len(res.data)} participants into event {event_id}")
+print(f"{len(res.data)} Teilnehmer in Veranstaltung {event_id} eingefügt")
