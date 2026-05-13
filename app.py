@@ -425,11 +425,6 @@ def page_dashboard() -> None:
     ax.set_aspect("equal")
     st.pyplot(fig)
 
-    # --- Confirmed vs pending -------------------------------------------
-    st.subheader("Confirmed vs pending")
-    status_counts = participants["status"].value_counts()
-    st.bar_chart(status_counts)
-
     # --- Skill gap radar (Netzdiagramm) ---------------------------------
     st.subheader("Skill gap — requirements vs. team average")
     teams_df = db.get_teams(supabase, event_id)
