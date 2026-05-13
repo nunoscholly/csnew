@@ -17,7 +17,7 @@ import ml
 # ---------------------------------------------------------------------------
 # Streamlit-Seite einmalig oben konfigurieren, damit Titel/Favicon bei
 # jedem Rerun konsistent bleiben.
-st.set_page_config(page_title="Event-Team-Manager", layout="wide")
+st.set_page_config(page_title="STARTCrew", layout="wide")
 
 
 # ---------------------------------------------------------------------------
