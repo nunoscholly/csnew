@@ -359,17 +359,21 @@ def page_participants() -> None:
                 if team_choice != UNASSIGNED_LABEL
                 else None
             )
-            db.add_participant(
-                supabase,
-                event_id=event_id,
-                name=name,
-                skills=skills_input,
-                skill=skill,
-                status=status,
-                team_id=chosen_team_id,
-            )
-            st.success(f"{name} zur Veranstaltung '{event_label}' hinzugefügt.")
-            st.rerun()
+            try:
+                db.add_participant(
+                    supabase,
+                    event_id=event_id,
+                    name=name,
+                    skills=skills_input,
+                    skill=skill,
+                    status=status,
+                    team_id=chosen_team_id,
+                )
+            except Exception as exc:
+                st.error(f"Fehler beim Anlegen des Teilnehmers: {exc}")
+            else:
+                st.success(f"{name} zur Veranstaltung '{event_label}' hinzugefügt.")
+                st.rerun()
 
     if not participants.empty:
         # Die {Label: id}-Map einmal aufbauen. Der pd.notna-Check ist nötig, weil

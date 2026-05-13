@@ -7,6 +7,12 @@ from supabase import Client
 
 from ml import SKILL_COLUMNS
 
+# Skill-Spalten, die durch die spätere "more_skills"-Migration ergänzt werden.
+# Falls diese Migration in der Ziel-Datenbank noch nicht angewendet wurde,
+# werden Inserts mit diesen Keys vom Supabase-Schema-Cache abgelehnt
+# ("column does not exist"). Wir entfernen sie dann beim Retry.
+_OPTIONAL_SKILL_COLUMNS = ("communication", "experience", "problem_solving")
+
 
 # ---------------------------------------------------------------------------
 # Veranstaltungen
@@ -142,7 +148,21 @@ def add_participant(
         "status": status,
     }
     payload.update({k: v for k, v in skills.items() if k in SKILL_COLUMNS})
-    response = supabase.table("participants").insert(payload).execute()
+    try:
+        response = supabase.table("participants").insert(payload).execute()
+    except Exception as exc:
+        # Wenn die neueren Skill-Spalten in der DB fehlen (Migration noch nicht
+        # angewendet), wirft PostgREST einen Schema-Fehler. Wir entfernen die
+        # optionalen Spalten und versuchen es erneut. Bei anderen Fehlern wird
+        # die Exception nach dem Retry-Versuch erneut geworfen.
+        if not any(col in payload for col in _OPTIONAL_SKILL_COLUMNS):
+            raise
+        for col in _OPTIONAL_SKILL_COLUMNS:
+            payload.pop(col, None)
+        try:
+            response = supabase.table("participants").insert(payload).execute()
+        except Exception:
+            raise exc
     return response.data[0]
 
 
