@@ -38,11 +38,17 @@ supabase = st.session_state["supabase"]
 
 # Deutsche Anzeigebezeichnungen für interne Status- und Skill-Werte
 STATUS_LABELS_DE = {"pending": "Ausstehend", "confirmed": "Bestätigt"}
-LEGACY_SKILL_LABELS_DE = {
-    "design": "Design",
-    "engineering": "Technik",
-    "business": "Wirtschaft",
-    "other": "Sonstige",
+ROLE_OPTIONS = ["techniker", "volunteer", "team", "andere"]
+ROLE_LABELS_DE = {
+    "techniker": "Techniker",
+    "volunteer": "Volunteer",
+    "team": "Team",
+    "andere": "Andere",
+    # Rückwärtskompatibilität: ältere Daten verwenden noch die alten Slugs.
+    "design": "Andere",
+    "engineering": "Techniker",
+    "business": "Team",
+    "other": "Andere",
 }
 UNASSIGNED_LABEL = "Nicht zugewiesen"
 
@@ -270,7 +276,7 @@ def page_participants() -> None:
         st.info("Noch keine Teilnehmer in dieser Veranstaltung.")
     else:
         # Filter-UI: erlaubt das Eingrenzen der Teilnehmertabelle nach Status
-        # und/oder nach Alt-Skill-Bezeichnung. Wir nutzen multiselect (statt
+        # und/oder nach Rolle. Wir nutzen multiselect (statt
         # selectbox), damit eine leere Auswahl "kein Filter" bedeutet – das
         # ist nutzerfreundlicher, als "Alle" aus einem Dropdown wählen zu müssen.
         st.subheader("Teilnehmer filtern")
@@ -288,15 +294,15 @@ def page_participants() -> None:
             )
         with filter_col2:
             skill_filter = st.multiselect(
-                "Nach Skill filtern (Alt-Bezeichnung)",
-                ["design", "engineering", "business", "other"],
+                "Nach Rolle filtern",
+                ROLE_OPTIONS,
                 default=[],
-                format_func=lambda v: LEGACY_SKILL_LABELS_DE.get(v, v),
+                format_func=lambda v: ROLE_LABELS_DE.get(v, v),
                 key=f"skill_filter_{event_id}",
             )
 
         # Filter werden kumulativ angewandt. Eine leere Liste ist ein No-Op,
-        # sodass Nutzer sie frei kombinieren können (z.B. "confirmed" + "design").
+        # sodass Nutzer sie frei kombinieren können (z.B. "confirmed" + "techniker").
         filtered = participants.copy()
         if status_filter:
             filtered = filtered[filtered["status"].isin(status_filter)]
@@ -323,9 +329,9 @@ def page_participants() -> None:
     with st.form("new_participant_form"):
         name = st.text_input("Name")
         skill = st.selectbox(
-            "Alt-Skill-Bezeichnung (vom Balance-Classifier verwendet)",
-            ["design", "engineering", "business", "other"],
-            format_func=lambda v: LEGACY_SKILL_LABELS_DE.get(v, v),
+            "Rolle",
+            ROLE_OPTIONS,
+            format_func=lambda v: ROLE_LABELS_DE.get(v, v),
         )
         status = st.selectbox(
             "Status",
@@ -445,11 +451,11 @@ def page_dashboard() -> None:
     team_sizes = participants.groupby("team_name").size().rename("Mitglieder")
     st.bar_chart(team_sizes)
 
-    # --- Skill-Verteilung -----------------------------------------------
-    st.subheader("Skill-Verteilung")
+    # --- Rollen-Verteilung ----------------------------------------------
+    st.subheader("Rollen-Verteilung")
     skill_counts = (
         participants["skill"]
-        .map(lambda v: LEGACY_SKILL_LABELS_DE.get(v, v) if pd.notna(v) else "Unbekannt")
+        .map(lambda v: ROLE_LABELS_DE.get(v, v) if pd.notna(v) else "Unbekannt")
         .fillna("Unbekannt")
         .value_counts()
     )
