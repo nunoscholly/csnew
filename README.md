@@ -16,14 +16,14 @@ team looks balanced or unbalanced.
 - **Events, teams, participants** — full CRUD with cascading delete buttons.
 - **Skill ratings & kNN recommendations** — rate participants on 9 skills (strength, driving, design, social, construction, english, german, photography, leadership) on a 1–5 scale, set per-team minimum thresholds, and let scikit-learn's `NearestNeighbors` recommend the best-fitting unassigned candidates for each team.
 - **Event-scoped participant pool** — the Participants page lists everyone in an event regardless of team, so you can add people first and assign them later.
-- **Supervised skill-imputation classifier** — a `KNeighborsClassifier` predicts whether a participant is "high" (rating ≥ 4) on a target skill given their other 8 skill ratings, evaluated with `train_test_split` and `classification_report` (precision, recall, F1, accuracy).
-- **Dashboard** — bar chart of team sizes, skill-gap radar (team requirements vs. averages).
+- **Team balance classifier** — a `DecisionTreeClassifier` flags whether a team looks balanced.
+- **Dashboard** — bar/pie charts of team sizes, skills, and confirmation status.
 
 ## Tech stack
 
 - **UI:** Streamlit
 - **Database & Auth:** Supabase (Postgres + REST API + Auth)
-- **ML:** scikit-learn `KNeighborsClassifier` (supervised skill imputation) + `NearestNeighbors` (gap-weighted team recommendations)
+- **ML:** scikit-learn `DecisionTreeClassifier` (balance) + `NearestNeighbors` (recommendations)
 - **Data:** pandas, numpy
 - **Charts:** matplotlib + Streamlit built-ins
 
@@ -34,8 +34,7 @@ team looks balanced or unbalanced.
 ├── app.py            # Streamlit UI and page routing
 ├── auth.py           # Supabase Auth helpers
 ├── database.py       # Supabase CRUD operations
-├── ml.py             # kNN recommender + supervised skill-imputation classifier
-├── tests/            # pytest unit tests for the ML module
+├── ml.py             # Team balance classifier
 ├── requirements.txt  # Python dependencies
 ├── .env.example      # Template for credentials
 └── README.md
@@ -72,10 +71,10 @@ team looks balanced or unbalanced.
 2. **Web-based UI** — Streamlit pages with sidebar navigation (`app.py`).
 3. **Database integration** — Supabase Postgres with three relational tables (events, teams, participants), accessed via `database.py`.
 4. **User authentication** — Supabase Auth email/password login via `auth.py`.
-5. **Data visualisation** — Bar chart and skill-gap radar chart on the Dashboard page (team sizes, requirements vs. team averages).
+5. **Data visualisation** — Bar charts and pie chart on the Dashboard page (team sizes, skills, status).
 6. **Source code documentation** — Every function has a docstring; every section has comments.
-7. **Machine learning component** — Two scikit-learn models in `ml.py`: (a) a supervised `KNeighborsClassifier` that predicts whether a participant is "high" on a target skill from the other 8 skills, evaluated with `train_test_split` and `classification_report` (precision/recall/F1/accuracy) on the ML Insights page; (b) an unsupervised `NearestNeighbors` recommender that surfaces unassigned candidates whose strengths fill a team's skill gaps.
-8. **Reproducibility & deployment** — `requirements.txt`, `.env.example`, single-command run (`streamlit run app.py`), and `pytest` unit tests for the ML module.
+7. **Machine learning component** — `DecisionTreeClassifier` in `ml.py` predicts "balanced" vs "unbalanced" teams; `classification_report` displayed in the UI.
+8. **Reproducibility & deployment** — `requirements.txt`, `.env.example`, single-command run (`streamlit run app.py`).
 
 ## Contribution matrix
 
