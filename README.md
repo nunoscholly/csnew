@@ -8,24 +8,24 @@ Built for the HSG St. Gallen Computer Science project.
 Event organizers struggle to manage participants, assign them to teams, and
 get a quick overview of team composition. This app gives organizers a single
 place to create events, build teams, add participants, visualise team
-composition, and run a small machine learning model that flags whether a
-team looks balanced or unbalanced.
+composition, and use a small machine learning model to recommend the
+unassigned candidates that best fill each team's skill gaps.
 
 ## Features
 
 - **Events, teams, participants** — full CRUD with cascading delete buttons.
-- **Skill ratings & kNN recommendations** — rate participants on 9 skills (strength, driving, design, social, construction, english, german, photography, leadership) on a 1–5 scale, set per-team minimum thresholds, and let scikit-learn's `NearestNeighbors` recommend the best-fitting unassigned candidates for each team.
+- **Skill ratings & gap-weighted kNN recommendations** — rate participants on 9 skills (strength, driving, design, social, construction, english, german, photography, leadership) on a 1–5 scale, set per-team minimum thresholds, and let scikit-learn's `NearestNeighbors` recommend the unassigned candidates whose strengths best fill each team's skill gaps.
 - **Event-scoped participant pool** — the Participants page lists everyone in an event regardless of team, so you can add people first and assign them later.
-- **Team balance classifier** — a `DecisionTreeClassifier` flags whether a team looks balanced.
-- **Dashboard** — bar/pie charts of team sizes, skills, and confirmation status.
+- **Dashboard** — bar chart of team sizes and a skill-gap radar (Netzdiagramm) comparing team requirements to actual team averages.
 
 ## Tech stack
 
 - **UI:** Streamlit
 - **Database & Auth:** Supabase (Postgres + REST API + Auth)
-- **ML:** scikit-learn `DecisionTreeClassifier` (balance) + `NearestNeighbors` (recommendations)
+- **ML:** scikit-learn `NearestNeighbors` (gap-weighted kNN recommender)
 - **Data:** pandas, numpy
 - **Charts:** matplotlib + Streamlit built-ins
+- **Tests:** pytest
 
 ## Project structure
 
@@ -34,7 +34,8 @@ team looks balanced or unbalanced.
 ├── app.py            # Streamlit UI and page routing
 ├── auth.py           # Supabase Auth helpers
 ├── database.py       # Supabase CRUD operations
-├── ml.py             # Team balance classifier
+├── ml.py             # Gap-weighted kNN recommender
+├── tests/            # pytest unit tests for the ML module
 ├── requirements.txt  # Python dependencies
 ├── .env.example      # Template for credentials
 └── README.md
@@ -67,14 +68,14 @@ team looks balanced or unbalanced.
 
 ## How the 8 grading requirements are met
 
-1. **Real-world problem solved** — Manages event participants, teams, and balance for organizers.
+1. **Real-world problem solved** — Manages event participants, teams, and team-fit recommendations for organizers.
 2. **Web-based UI** — Streamlit pages with sidebar navigation (`app.py`).
 3. **Database integration** — Supabase Postgres with three relational tables (events, teams, participants), accessed via `database.py`.
 4. **User authentication** — Supabase Auth email/password login via `auth.py`.
-5. **Data visualisation** — Bar charts and pie chart on the Dashboard page (team sizes, skills, status).
+5. **Data visualisation** — Bar chart of team sizes and skill-gap radar chart (team requirements vs. actual team averages) on the Dashboard page.
 6. **Source code documentation** — Every function has a docstring; every section has comments.
-7. **Machine learning component** — `DecisionTreeClassifier` in `ml.py` predicts "balanced" vs "unbalanced" teams; `classification_report` displayed in the UI.
-8. **Reproducibility & deployment** — `requirements.txt`, `.env.example`, single-command run (`streamlit run app.py`).
+7. **Machine learning component** — `ml.py` builds a 9-dimensional skill-gap vector per team and uses scikit-learn's `NearestNeighbors` to recommend the unassigned candidates whose strengths best fill those gaps. Recommendations are surfaced on both the Teams and ML Insights pages.
+8. **Reproducibility & deployment** — `requirements.txt`, `.env.example`, single-command run (`streamlit run app.py`), and `pytest` unit tests for the ML module.
 
 ## Contribution matrix
 
