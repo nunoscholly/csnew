@@ -3,6 +3,7 @@
 from datetime import date as date_cls
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -428,6 +429,37 @@ def page_dashboard() -> None:
     st.subheader("Confirmed vs pending")
     status_counts = participants["status"].value_counts()
     st.bar_chart(status_counts)
+
+    # --- Skill gap radar (Netzdiagramm) ---------------------------------
+    st.subheader("Skill gap — requirements vs. team average")
+    teams_df = db.get_teams(supabase, event_id)
+    team_choices = participants["team_name"].dropna().unique().tolist()
+    if not team_choices:
+        st.info("No teams with members yet.")
+        return
+
+    team_name = st.selectbox("Team", team_choices, key="radar_team")
+    team_id = teams_df.loc[teams_df["name"] == team_name, "id"].iloc[0]
+    team_row = teams_df[teams_df["id"] == team_id].iloc[0]
+    team_members = participants[participants["team_id"] == team_id]
+
+    avg = team_members[ml.SKILL_COLUMNS].mean().to_numpy(dtype=float)
+    req = np.array([team_row[f"req_{s}"] for s in ml.SKILL_COLUMNS], dtype=float)
+    angles = np.linspace(0, 2 * np.pi, len(ml.SKILL_COLUMNS), endpoint=False)
+    angles_loop = np.concatenate([angles, angles[:1]])
+    avg_loop = np.concatenate([avg, avg[:1]])
+    req_loop = np.concatenate([req, req[:1]])
+
+    fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
+    ax.plot(angles_loop, req_loop, color="tab:red", label="Requirement")
+    ax.fill(angles_loop, req_loop, color="tab:red", alpha=0.1)
+    ax.plot(angles_loop, avg_loop, color="tab:blue", label="Team average")
+    ax.fill(angles_loop, avg_loop, color="tab:blue", alpha=0.2)
+    ax.set_xticks(angles)
+    ax.set_xticklabels([s.capitalize() for s in ml.SKILL_COLUMNS])
+    ax.set_ylim(0, 5)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
+    st.pyplot(fig)
 
 
 # ---------------------------------------------------------------------------
