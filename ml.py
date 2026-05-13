@@ -14,7 +14,15 @@ SKILL_COLUMNS = [
     "german",
     "photography",
     "leadership",
+    "communication",
+    "experience",
+    "problem_solving",
 ]
+
+
+def skill_label(skill: str) -> str:
+    # Human-readable label, e.g. "problem_solving" -> "Problem Solving"
+    return skill.replace("_", " ").title()
 
 
 def team_gap_vector(team_participants: pd.DataFrame) -> np.ndarray:

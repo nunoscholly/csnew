@@ -14,7 +14,7 @@ unassigned candidates that best fill each team's skill gaps.
 ## Features
 
 - **Events, teams, participants** — full CRUD with cascading delete buttons.
-- **Skill ratings & gap-weighted kNN recommendations** — rate participants on 9 skills (strength, driving, design, social, construction, english, german, photography, leadership) on a 1–5 scale, set per-team minimum thresholds, and let scikit-learn's `NearestNeighbors` recommend the unassigned candidates whose strengths best fill each team's skill gaps.
+- **Skill ratings & gap-weighted kNN recommendations** — rate participants on 12 skills (strength, driving, design, social, construction, english, german, photography, leadership, communication, experience, problem solving) on a 1–5 scale, set per-team minimum thresholds, and let scikit-learn's `NearestNeighbors` recommend the unassigned candidates whose strengths best fill each team's skill gaps.
 - **Event-scoped participant pool** — the Participants page lists everyone in an event regardless of team, so you can add people first and assign them later.
 - **Dashboard** — bar chart of team sizes and a skill-gap radar (Netzdiagramm) comparing team requirements to actual team averages.
 

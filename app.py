@@ -170,7 +170,7 @@ def page_teams() -> None:
         for i, s in enumerate(ml.SKILL_COLUMNS):
             with cols[i % 3]:
                 thresholds_input[f"req_{s}"] = st.slider(
-                    s.capitalize(), 0, 5, 0, key=f"req_{s}_{event_id}"
+                    ml.skill_label(s), 0, 5, 0, key=f"req_{s}_{event_id}"
                 )
         submitted = st.form_submit_button("Create team")
 
@@ -313,7 +313,7 @@ def page_participants() -> None:
         cols = st.columns(3)
         for i, s in enumerate(ml.SKILL_COLUMNS):
             with cols[i % 3]:
-                skills_input[s] = st.slider(s.capitalize(), 1, 5, 3, key=f"new_{s}")
+                skills_input[s] = st.slider(ml.skill_label(s), 1, 5, 3, key=f"new_{s}")
         submitted = st.form_submit_button("Add participant")
 
     if submitted:
@@ -451,7 +451,7 @@ def page_dashboard() -> None:
     ax.plot(angles_loop, avg_loop, color="tab:blue", label="Team average")
     ax.fill(angles_loop, avg_loop, color="tab:blue", alpha=0.2)
     ax.set_xticks(angles)
-    ax.set_xticklabels([s.capitalize() for s in ml.SKILL_COLUMNS])
+    ax.set_xticklabels([ml.skill_label(s) for s in ml.SKILL_COLUMNS])
     ax.set_ylim(0, 5)
     ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
     st.pyplot(fig)
@@ -512,7 +512,7 @@ def page_ml_insights() -> None:
         gap_pairs = sorted(
             zip(ml.SKILL_COLUMNS, gap), key=lambda kv: kv[1], reverse=True
         )
-        top_gaps = [f"{name} (gap={int(g)})" for name, g in gap_pairs[:3] if g > 0]
+        top_gaps = [f"{ml.skill_label(name)} (gap={int(g)})" for name, g in gap_pairs[:3] if g > 0]
         st.markdown("**Weakest skills:** " + ", ".join(top_gaps))
 
         if not show_recs:
@@ -534,7 +534,7 @@ def page_ml_insights() -> None:
 
     st.divider()
     st.caption(
-        "Method: gap-weighted Euclidean kNN over 9-dimensional skill vectors. "
+        f"Method: gap-weighted Euclidean kNN over {len(ml.SKILL_COLUMNS)}-dimensional skill vectors. "
         "Lower distance = better complement; gap_score is the dot product of "
         "the candidate's skills with the team's gap vector (higher = covers more gap)."
     )
