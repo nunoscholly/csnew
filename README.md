@@ -13,10 +13,10 @@ Entwickelt im Rahmen des Computer-Science-Projekts an der HSG St. Gallen.
 
 Bei der Entwicklung dieser App wurden folgende KI-Hilfsmittel eingesetzt:
 
-- **Claude (Anthropic)** - Unterstützung beim Schreiben, Refactoring und
+- **Claude (Anthropic):** Unterstützung beim Schreiben, Refactoring und
   Debuggen von Python-Code, bei der Gestaltung des ML-Recommenders sowie beim
   Verfassen dieser Dokumentation.
-- **Weitere KI-Assistenten** — punktuell zur Recherche, für
+- **Weitere KI-Assistenten:** punktuell zur Recherche, für
   Code-Vorschläge und zur Fehlersuche.
 
 Alle KI-generierten Inhalte wurden von den Projektmitgliedern geprüft,
