@@ -59,8 +59,8 @@ Login mit dem Test-Account weiter unten ([Schritt 5](#lokale-ausführung)).
 Bei der Entwicklung dieser App wurden folgende KI-Hilfsmittel eingesetzt:
 
 - **Claude (Anthropic):** Unterstützung beim Schreiben, Refactoring und
-  Debuggen von Python-Code, bei der Gestaltung des ML-Recommenders, bei der Erstellung von Seed-Data sowie beim
-  Verfassen dieser Dokumentation.
+  Debuggen von Python-Code, bei der Gestaltung des ML-Recommenders, bei der
+  Erstellung von Seed-Data sowie beim Verfassen dieser Dokumentation.
 - **Weitere KI-Assistenten:** punktuell zur Recherche, für
   Code-Vorschläge und zur Fehlersuche.
 
