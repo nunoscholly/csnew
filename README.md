@@ -9,6 +9,15 @@ Entwickelt im Rahmen des Computer-Science-Projekts an der HSG St. Gallen.
 
 ---
 
+## Live-Demo
+
+Die App ist online verfügbar unter:
+<https://wejwcj9v2357f7fsocxvhg.streamlit.app/>
+
+Login mit dem Test-Account weiter unten ([Schritt 5](#lokale-ausführung)).
+
+---
+
 ## Lokale Ausführung
 
 1. Repository klonen und in das Projektverzeichnis wechseln.
